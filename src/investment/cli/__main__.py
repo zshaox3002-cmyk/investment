@@ -22,9 +22,13 @@ console = Console()
 migrate_app = typer.Typer(help="Database migrations.", no_args_is_help=True)
 data_app = typer.Typer(help="Data inspection.", no_args_is_help=True)
 snapshot_app = typer.Typer(help="Daily snapshot commands.", no_args_is_help=True)
+dashboard_app = typer.Typer(help="Dashboard generation.", no_args_is_help=True)
+thesis_app = typer.Typer(help="Thesis management.", no_args_is_help=True)
 app.add_typer(migrate_app, name="migrate")
 app.add_typer(data_app, name="data")
 app.add_typer(snapshot_app, name="snapshot")
+app.add_typer(dashboard_app, name="dashboard")
+app.add_typer(thesis_app, name="thesis")
 
 
 @app.command()
@@ -98,6 +102,105 @@ def snapshot_show(
         console.print(f"[red]No report for {d}[/red]")
         raise typer.Exit(1)
     console.print(path.read_text(encoding="utf-8"))
+
+
+# ── Dashboard commands ────────────────────────────────────────────────────
+
+@dashboard_app.command("render")
+def dashboard_render(
+    mode: str = typer.Option("standard", "--mode", help="standard | pre-market | post-market"),
+) -> None:
+    """Generate DASHBOARD.html from DB."""
+    from investment.reports.dashboard import run as dash_run
+    path = dash_run(mode=mode)
+    console.print(f"[green]✓[/green] {path}")
+
+
+@dashboard_app.command("pre-market")
+def dashboard_pre() -> None:
+    """Generate DASHBOARD.html in pre-market mode."""
+    from investment.reports.dashboard import run as dash_run
+    path = dash_run(mode="pre-market")
+    console.print(f"[green]✓[/green] {path}")
+
+
+@dashboard_app.command("post-market")
+def dashboard_post() -> None:
+    """Generate DASHBOARD.html in post-market mode."""
+    from investment.reports.dashboard import run as dash_run
+    path = dash_run(mode="post-market")
+    console.print(f"[green]✓[/green] {path}")
+
+
+# ── Thesis commands ───────────────────────────────────────────────────────
+
+@thesis_app.command("sync")
+def thesis_sync() -> None:
+    """Sync frontmatter from theses/*.md into DB."""
+    from investment.workflow.thesis import sync
+    n = sync()
+    console.print(f"[green]✓[/green] {n} theses synced")
+
+
+@thesis_app.command("list")
+def thesis_list() -> None:
+    """List all theses with current scores."""
+    from investment.workflow.thesis import list_theses
+    rows = list_theses()
+    table = Table(title="Theses")
+    table.add_column("Code")
+    table.add_column("Name")
+    table.add_column("Score")
+    table.add_column("Rating")
+    table.add_column("Action")
+    table.add_column("Updated")
+    for r in rows:
+        score = f"{r['current_score']:.2f}" if r["current_score"] is not None else "—"
+        table.add_row(
+            r["code"], r["name"], score,
+            r["rating"] or "—", r["action"] or "—", r["updated_at"] or "—",
+        )
+    console.print(table)
+
+
+@thesis_app.command("score")
+def thesis_score(
+    code: str = typer.Argument(help="Stock code"),
+    dimension: str = typer.Option("综合", "--dimension", "-d"),
+    score: float = typer.Option(..., "--score", "-s"),
+    rationale: str = typer.Option("", "--rationale", "-r"),
+) -> None:
+    """Record a dimension score for a thesis."""
+    from investment.workflow.thesis import record_score
+    ok = record_score(code, dimension, score, rationale)
+    if ok:
+        console.print(f"[green]✓[/green] {code} {dimension} = {score}")
+    else:
+        console.print(f"[red]instrument not found: {code}[/red]")
+        raise typer.Exit(1)
+
+
+@thesis_app.command("stale")
+def thesis_stale(
+    days: int = typer.Option(90, "--days", help="Threshold in days"),
+) -> None:
+    """List theses not updated within N days."""
+    from investment.workflow.thesis import stale_theses
+    rows = stale_theses(days)
+    if not rows:
+        console.print(f"[green]✓[/green] All theses updated within {days} days")
+        return
+    table = Table(title=f"Stale Theses (>{days} days)")
+    table.add_column("Code")
+    table.add_column("Name")
+    table.add_column("Score")
+    table.add_column("Last Updated")
+    table.add_column("Days Since")
+    for r in rows:
+        score = f"{r['current_score']:.2f}" if r["current_score"] is not None else "—"
+        days_s = f"{int(r['days_since'])}" if r["days_since"] else "?"
+        table.add_row(r["code"], r["name"], score, r["updated_at"] or "—", days_s)
+    console.print(table)
 
 
 if __name__ == "__main__":

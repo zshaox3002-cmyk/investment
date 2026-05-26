@@ -117,15 +117,15 @@ def run(db_path=None) -> bool:
     # ── Check 3: Alert count ───────────────────────────────────────────────
     lines.append("## Check 3: Alert Count\n")
     file_count = len(list(ALERTS_DIR.glob("*.md")))
-    # Only count alerts that came from migration (source files), not runtime alerts
+    # Count distinct body_paths from migration (each md file = one row)
     db_count = conn.execute(
-        "SELECT COUNT(*) AS n FROM alerts WHERE body_path IS NOT NULL"
+        "SELECT COUNT(DISTINCT body_path) AS n FROM alerts WHERE body_path IS NOT NULL"
     ).fetchone()["n"]
     status = "✅ OK" if db_count == file_count else "⚠️ DIFF"
     if db_count != file_count:
         all_ok = False
     lines.append(f"- alerts/*.md files: {file_count}")
-    lines.append(f"- DB migrated alerts (with body_path): {db_count}")
+    lines.append(f"- DB distinct migrated alert paths: {db_count}")
     lines.append(f"- Status: {status}\n")
 
     # ── Check 4: Thesis scores ─────────────────────────────────────────────

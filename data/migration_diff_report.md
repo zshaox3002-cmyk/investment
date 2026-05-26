@@ -15,7 +15,7 @@
 ## Check 3: Alert Count
 
 - alerts/*.md files: 18
-- DB migrated alerts (with body_path): 18
+- DB distinct migrated alert paths: 18
 - Status: ✅ OK
 
 ## Check 4: Thesis Scores (frontmatter vs DB)
