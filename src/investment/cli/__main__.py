@@ -34,18 +34,31 @@ def version() -> None:
 
 @migrate_app.command("run")
 def migrate_run(force: bool = typer.Option(False, "--force", help="Re-apply schema")) -> None:
-    """Initialize or migrate the SQLite database."""
-    version = db.init_db(force=force)
-    console.print(f"[green]ok[/green] schema_version={version} db={DB_PATH}")
+    """Run all 8 migration steps (idempotent)."""
+    from investment.migration.runner import run_all
+    run_all()
 
 
 @migrate_app.command("verify")
 def migrate_verify() -> None:
-    """Verify DB structure (placeholder until D2 implements full reconciliation)."""
-    tables = db.list_tables()
-    console.print(f"[green]ok[/green] tables/views: {len(tables)}")
-    for name in tables:
-        console.print(f"  - {name}")
+    """Reconcile DB against source files and write diff report."""
+    from investment.migration.verify import run as verify_run
+    ok = verify_run()
+    if ok:
+        console.print("[green]✓ All checks passed[/green]")
+    else:
+        console.print("[yellow]⚠ Some checks failed — see data/migration_diff_report.md[/yellow]")
+        raise typer.Exit(1)
+
+
+@migrate_app.command("rollback")
+def migrate_rollback() -> None:
+    """Delete portfolio.db to revert to CSV-based workflow."""
+    if DB_PATH.exists():
+        DB_PATH.unlink()
+        console.print(f"[yellow]Deleted {DB_PATH}[/yellow]")
+    else:
+        console.print("No DB file found.")
 
 
 @data_app.command("tables")
