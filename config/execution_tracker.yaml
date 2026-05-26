@@ -1,0 +1,470 @@
+# ============================================================
+# config/execution_tracker.yaml
+# 执行追踪器 — 所有待办事项的统一状态记录
+# ============================================================
+# 版本：v1.0
+# 创建日期：2026-05-26
+# 用法：手动更新 status 字段，运行 dashboard.py 生成 DASHBOARD.html
+# status: pending | in_progress | done | skipped | blocked
+# task_type: trade | research | compliance | monitor
+# depends_on: 依赖任务 ID 列表（可选，依赖全部完成后本任务方可执行）
+# ============================================================
+
+meta:
+  last_updated: "2026-05-26"
+  version: "1.0"
+
+# ═══════════════════════════════════════════════════════════
+# C 仓位重组（来源：trades/agenda.md + agenda_summary.md）
+# ═══════════════════════════════════════════════════════════
+c_tranche_restructure:
+  - id: "C-001"
+    task_type: "trade"
+    action: "南山铝业第一档减仓 4,100股"
+    stock: "600219"
+    source: "trades/agenda_summary.md + decision_002.md"
+    planned_date: "2026-05-26"
+    planned_end: "2026-05-30"
+    amount: 21648
+    status: "done"
+    result: "实际卖出 6,700股，回笼 ¥36,262，第一档超额完成"
+    log_ref: "trades/log_002_001.md"
+
+  - id: "C-002"
+    task_type: "trade"
+    action: "理想汽车清仓 2,400股"
+    stock: "02015"
+    source: "trades/agenda_summary.md"
+    planned_date: "2026-05-28"
+    amount: 148320
+    status: "pending"
+    notes: "等待 Q1 财报后执行；thesis 评分 2.8/5"
+    condition: "财报无重大利好则按计划清仓"
+
+  - id: "C-003"
+    task_type: "trade"
+    action: "隆基绿能清仓 3,600股"
+    stock: "601012"
+    source: "trades/agenda_summary.md"
+    planned_date: "2026-05-29"
+    amount: 54144
+    status: "pending"
+    notes: "thesis 评分 2.8/5；产能过剩+毛利率压力"
+
+  - id: "C-004"
+    task_type: "trade"
+    action: "中国铀业清仓 200股"
+    stock: "001280"
+    source: "trades/agenda_summary.md"
+    planned_date: "2026-05-30"
+    amount: 15190
+    status: "done"
+    result: "实际卖出 200股 × ¥73.11 = ¥14,622，较计划提前4天清仓"
+    notes: "thesis 评分 2.5/5；仓位太碎 2.44%"
+    log_ref: "trades/log_002_002.md"
+
+  - id: "C-005"
+    task_type: "trade"
+    action: "比亚迪减仓 400股（12.06% → 5%）"
+    stock: "002594"
+    source: "trades/agenda_summary.md"
+    planned_date: "2026-06-01"
+    amount: 37500
+    status: "pending"
+    notes: "thesis 评分 3.2/5；新能源龙头保留 5% 观察仓"
+
+  - id: "C-006"
+    task_type: "monitor"
+    action: "南山铝业第二档减仓 24,600股（价格触发）"
+    stock: "600219"
+    source: "trades/agenda_summary.md"
+    planned_date: "2026-06-23"
+    planned_end: "2027-05-23"
+    amount: 162300
+    status: "pending"
+    notes: "分4批价格触发：≥5.81/≥6.34/≥6.86/≥7.39；当前价 ¥5.50 未触发"
+    trigger_conditions:
+      - "价格 ≥ ¥5.81 → 卖出 6,150股"
+      - "价格 ≥ ¥6.34 → 卖出 6,150股"
+      - "价格 ≥ ¥6.86 → 卖出 6,150股"
+      - "价格 ≥ ¥7.39 → 卖出 6,150股"
+
+# ═══════════════════════════════════════════════════════════
+# B 仓 ETF 建仓（来源：config/b_tranche_execution_plan.yaml）
+# ═══════════════════════════════════════════════════════════
+b_tranche_build:
+
+  # ── 纳指100 出清计划 ──
+  - id: "B-N01"
+    task_type: "trade"
+    action: "纳指100 第1批卖出 25% (16,625股)"
+    etf_code: "159941"
+    source: "config/b_tranche_execution_plan.yaml"
+    planned_week: 1
+    planned_date: "2026-05-26"
+    amount: 27000
+    status: "pending"
+    notes: "无条件执行；当前 PE > 25倍"
+
+  - id: "B-N02"
+    task_type: "trade"
+    action: "纳指100 第2批卖出 25%"
+    etf_code: "159941"
+    planned_week: 3
+    planned_date: "2026-06-08"
+    amount: 27000
+    status: "pending"
+    depends_on: ["B-N01"]
+
+  - id: "B-N03"
+    task_type: "trade"
+    action: "纳指100 第3批卖出 25%"
+    etf_code: "159941"
+    planned_week: 5
+    amount: 27000
+    status: "pending"
+    condition: "纳指 PE > 25倍才继续"
+    depends_on: ["B-N02"]
+
+  - id: "B-N04"
+    task_type: "trade"
+    action: "纳指100 第4批卖出 25%"
+    etf_code: "159941"
+    planned_week: 7
+    amount: 27000
+    status: "pending"
+    condition: "纳指 PE > 25倍才继续"
+    depends_on: ["B-N03"]
+
+  # ── Phase 1: 立即建仓 ──
+  - id: "B-P1-01"
+    task_type: "trade"
+    action: "港股科技 ETF 建仓 ¥80,000"
+    etf_code: "513010"
+    source: "config/b_tranche_execution_plan.yaml"
+    phase: "Phase 1"
+    planned_week: 1
+    amount: 80000
+    status: "in_progress"
+    progress_note: "已买入 17,300股 ¥11,228 (14.0%)"
+    remaining: 68772
+    log_ref: "trades/log_002_001.md"
+
+  - id: "B-P1-02"
+    task_type: "trade"
+    action: "中证红利 ETF 建仓 ¥48,000"
+    etf_code: "515180"
+    phase: "Phase 1"
+    planned_week: 1
+    amount: 48000
+    status: "pending"
+    notes: "一次性建仓，防御底仓，股息率 ~5.2%"
+
+  # ── Phase 2: 定投积累（第3-12周）──
+  - id: "B-P2-01"
+    task_type: "trade"
+    action: "中证A500 ETF 12周定投 ¥160,725"
+    etf_code: "563360"
+    phase: "Phase 2"
+    planned_week: 3
+    planned_end_week: 12
+    amount: 160725
+    weekly_amount: 13394
+    status: "in_progress"
+    progress_note: "已买入 21,700股 ¥30,011 (18.7%)；超买约2.2周额度，需回归定投节奏"
+    log_ref: "trades/log_002_001.md"
+
+  - id: "B-P2-02"
+    task_type: "trade"
+    action: "港股科技 ETF 补足到25%目标"
+    etf_code: "513010"
+    phase: "Phase 2"
+    planned_week: 3
+    planned_end_week: 12
+    amount: 80725
+    weekly_amount: 6727
+    status: "pending"
+    notes: "Phase 1 完成后剩余补足部分，12周定投"
+    depends_on: ["B-P1-01"]
+
+  - id: "B-P2-03"
+    task_type: "trade"
+    action: "中证红利 ETF 补足到10%目标"
+    etf_code: "515180"
+    phase: "Phase 2"
+    planned_week: 3
+    planned_end_week: 12
+    amount: 16290
+    weekly_amount: 1358
+    status: "pending"
+    notes: "Phase 1 完成后剩余补足部分"
+    depends_on: ["B-P1-02"]
+
+  # ── Phase 3: 择机建仓（第13-20周）──
+  - id: "B-P3-01"
+    task_type: "trade"
+    action: "创业板 ETF 建仓 ¥96,435"
+    etf_code: "159915"
+    phase: "Phase 3"
+    planned_week: 13
+    planned_end_week: 20
+    amount: 96435
+    status: "blocked"
+    condition: "PE 回落至 42倍以下 或 指数跌 >10%"
+    fallback: "第20周末条件未触发 → 资金转入现金储备"
+    depends_on: ["B-P2-01", "B-P2-02"]
+
+  # ── 现金储备触发条件（监控中）──
+  - id: "B-CR-01"
+    task_type: "monitor"
+    action: "科创50 ETF 抄底 ¥30,000"
+    etf_code: "588000"
+    type: "cash_reserve"
+    status: "blocked"
+    condition: "科创50 PE 从 167倍回调至 120倍以下 (~-28%)"
+
+  - id: "B-CR-02"
+    task_type: "monitor"
+    action: "A500 加速建仓 ¥50,000"
+    etf_code: "563360"
+    type: "cash_reserve"
+    status: "blocked"
+    condition: "A500 PE 百分位从 97%回调至 60%以下 (~-20%)"
+
+  - id: "B-CR-03"
+    task_type: "monitor"
+    action: "港股科技 暴跌加仓 ¥15,000"
+    etf_code: "513010"
+    type: "cash_reserve"
+    status: "blocked"
+    condition: "港股科技单日跌 >5%"
+
+  - id: "B-CR-04"
+    task_type: "monitor"
+    action: "系统性风险抄底 ¥65,724"
+    type: "cash_reserve"
+    status: "blocked"
+    condition: "全球系统性风险事件（地缘冲突/金融危机/黑天鹅）"
+
+  - id: "B-CR-05"
+    task_type: "monitor"
+    action: "标普500 ETF 建仓 ¥32,145"
+    etf_code: "513500"
+    type: "cash_reserve"
+    status: "blocked"
+    condition: "标普500 PE 回落至 22倍以下 且 ETF 溢价 <2%"
+
+  # ── 执行偏差修正 ──
+  - id: "B-FIX-01"
+    task_type: "trade"
+    action: "A500 超买部分择机卖出，回归定投节奏"
+    etf_code: "563360"
+    source: "trades/log_002_001.md"
+    status: "pending"
+    notes: "已超买约 2.2 周额度，后续应暂停买入直至回归定投线"
+    depends_on: ["B-P2-01"]
+
+  - id: "B-FIX-02"
+    task_type: "research"
+    action: "确认港股科技 ETF 代码：计划 513180 vs 实际 513010"
+    source: "trades/log_002_001.md"
+    status: "pending"
+    notes: "需确认是否调整 B 档计划中的 ETF 代码"
+
+# ═══════════════════════════════════════════════════════════
+# 合规整改（来源：config/rules.yaml active_breaches）
+# ═══════════════════════════════════════════════════════════
+compliance_remediation:
+  - id: "R-001"
+    task_type: "compliance"
+    action: "南山铝业强制降权 42.8% → ≤25%"
+    rule: "single_stock_max"
+    stock: "600219"
+    stock_name: "南山铝业"
+    current: "42.8%"
+    target: "≤25%"
+    breach_amount: "17.8%"
+    deadline: "2026-06-22"
+    days_left: 27
+    status: "in_progress"
+    progress: "已从 45.16% 降至 42.8%（卖出 6,700股），第一档超额完成"
+    action_plan: "trades/decision_002.md"
+    log_ref: "trades/log_002_001.md"
+
+  - id: "R-002"
+    task_type: "compliance"
+    action: "新能源/电力链主题集中度整改 84.15% → ≤35%"
+    rule: "theme_concentration"
+    theme: "新能源/电力链"
+    stocks: ["002594", "02015", "601012", "600219", "001280"]
+    current: "84.15%"
+    target: "≤35%"
+    breach_amount: "49.15%"
+    deadline: "2026-08-24"
+    days_left: 90
+    status: "in_progress"
+    progress: "通过 C 仓位重组缓解（清仓理想/隆基/铀业，减仓比亚迪/南山）"
+    notes: "重组完成后预期降至 ~38.5%，接近目标"
+
+  - id: "R-003"
+    task_type: "compliance"
+    action: "C档总仓位降仓 48.38% → ≤30%"
+    rule: "active_position_total"
+    current: "48.38%"
+    target: "≤30%"
+    breach_amount: "18.38%"
+    deadline: "2026-06-22"
+    days_left: 27
+    status: "in_progress"
+    progress: "C 仓位重组进行中，目标降至 25.92%"
+    notes: "基准资产 ¥1,285,798（排除美团RSU），C 档 ¥622,028"
+
+# ═══════════════════════════════════════════════════════════
+# Thesis 维护（来源：config/rules.yaml thesis_maintenance）
+# ═══════════════════════════════════════════════════════════
+thesis_maintenance:
+  - id: "T-001"
+    task_type: "research"
+    action: "更新中国铀业 thesis — L2 审视线触发"
+    stock: "001280"
+    trigger: "回撤 -20.15% 触发 L2 审视线"
+    deadline: "2026-06-01"
+    status: "pending"
+
+  - id: "T-002"
+    task_type: "research"
+    action: "更新隆基绿能 thesis — L2 审视线触发"
+    stock: "601012"
+    trigger: "回撤 -21.34% 触发 L2 审视线"
+    deadline: "2026-06-01"
+    status: "pending"
+    notes: "5/22 股东大会：BC 28.13% 世界纪录 + 集采第一 + Q3 组件盈利承诺"
+
+  - id: "T-003"
+    task_type: "research"
+    action: "更新南山铝业 thesis — L2 审视线触发"
+    stock: "600219"
+    trigger: "回撤 -22.21% 触发 L2 审视线"
+    deadline: "2026-06-01"
+    status: "pending"
+    notes: "减仓是组合纪律驱动，非 thesis 证伪。五支柱 3.27/5"
+
+# ═══════════════════════════════════════════════════════════
+# 日常检查清单
+# ═══════════════════════════════════════════════════════════
+daily_checks:
+  pre_market:
+    - id: "PRE-01"
+      action: "查看隔夜美股/港股指数走势"
+    - id: "PRE-02"
+      action: "检查今日持仓公告/财报日历"
+    - id: "PRE-03"
+      action: "确认 macro.md 宏观事件日历"
+    - id: "PRE-04"
+      action: "确认今日待执行事项清单"
+  post_market:
+    - id: "POST-01"
+      action: "运行 daily_snapshot.py"
+    - id: "POST-02"
+      action: "更新 execution_tracker.yaml 中当日完成事项"
+    - id: "POST-03"
+      action: "检查是否有新触发告警"
+    - id: "POST-04"
+      action: "记录交易日志 trades/log_*.md（如有操作）"
+
+# ═══════════════════════════════════════════════════════════
+# 即将到来的关键日期
+# ═══════════════════════════════════════════════════════════
+upcoming_events:
+  - date: "2026-05-28"
+    event: "理想汽车 Q1 财报 + 清仓执行"
+    impact: "C 仓位最大单笔回笼 ¥148,320"
+  - date: "2026-05-29"
+    event: "隆基绿能清仓执行"
+    impact: "回笼 ¥54,144"
+  - date: "2026-05-30"
+    event: "中国铀业清仓执行"
+    impact: "✅ 已于 5/26 提前完成，实际回笼 ¥14,622"
+  - date: "2026-06-01"
+    event: "比亚迪减仓执行 + 3只 thesis L2 更新截止"
+    impact: "回笼 ¥37,500"
+  - date: "2026-06-22"
+    event: "⚠ 合规整改截止日：单股超限 + C档超配"
+    impact: "南山铝业必须降至 ≤25%，C 档必须降至 ≤30%"
+
+# ═══════════════════════════════════════════════════════════
+# WBS 目标层级（可选）
+# 引用上述任务 ID，定义目标-子目标-任务的层级关系。
+# dashboard.py 读取此节渲染手风琴式目标看板；
+# 如果此节不存在，回退到平铺表格模式。
+# ═══════════════════════════════════════════════════════════
+goals:
+  - id: "G-B"
+    name: "B仓ETF建仓"
+    description: "建立核心ETF仓位，构建防御性底仓，目标占组合50%"
+    wbs_code: "1"
+    icon: "📊"
+    task_refs:
+      - "B-N01"
+      - "B-N02"
+      - "B-N03"
+      - "B-N04"
+      - "B-P1-01"
+      - "B-P1-02"
+      - "B-P2-01"
+      - "B-P2-02"
+      - "B-P2-03"
+      - "B-P3-01"
+      - "B-CR-01"
+      - "B-CR-02"
+      - "B-CR-03"
+      - "B-CR-04"
+      - "B-CR-05"
+      - "B-FIX-01"
+      - "B-FIX-02"
+    sub_goals:
+      - id: "G-B-1"
+        name: "纳指100出清"
+        wbs_code: "1.1"
+        task_refs: ["B-N01", "B-N02", "B-N03", "B-N04"]
+      - id: "G-B-2"
+        name: "Phase 1: 立即建仓"
+        wbs_code: "1.2"
+        task_refs: ["B-P1-01", "B-P1-02"]
+      - id: "G-B-3"
+        name: "Phase 2: 定投积累 (第3-12周)"
+        wbs_code: "1.3"
+        task_refs: ["B-P2-01", "B-P2-02", "B-P2-03"]
+      - id: "G-B-4"
+        name: "Phase 3: 择机建仓 (第13-20周)"
+        wbs_code: "1.4"
+        task_refs: ["B-P3-01"]
+      - id: "G-B-5"
+        name: "现金储备触发条件 (监控中)"
+        wbs_code: "1.5"
+        task_refs: ["B-CR-01", "B-CR-02", "B-CR-03", "B-CR-04", "B-CR-05"]
+      - id: "G-B-6"
+        name: "执行偏差修正"
+        wbs_code: "1.6"
+        task_refs: ["B-FIX-01", "B-FIX-02"]
+
+  - id: "G-C"
+    name: "C仓位重组"
+    description: "降低C仓位集中度和主题风险，清仓低分thesis标的"
+    wbs_code: "2"
+    icon: "📉"
+    task_refs: ["C-001", "C-002", "C-003", "C-004", "C-005", "C-006"]
+
+  - id: "G-R"
+    name: "合规整改"
+    description: "解决 active_breaches 中的违规，恢复组合合规"
+    wbs_code: "3"
+    icon: "⚠️"
+    task_refs: ["R-001", "R-002", "R-003"]
+
+  - id: "G-T"
+    name: "Thesis维护"
+    description: "按时更新thesis文档，确保持仓逻辑清晰"
+    wbs_code: "4"
+    icon: "📝"
+    task_refs: ["T-001", "T-002", "T-003"]

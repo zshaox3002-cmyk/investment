@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 驱动投资管理系统 — 使用白皮书</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;background:#f7f9fc;color:#1a202c;font-size:15px;line-height:1.7}
+#top-header{position:fixed;top:0;left:0;right:0;height:52px;background:#0066cc;color:#fff;display:flex;align-items:center;padding:0 24px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+#top-header .title{font-size:16px;font-weight:600}
+#top-header .version{margin-left:12px;font-size:12px;opacity:.8;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:10px}
+#sidebar{position:fixed;top:52px;left:0;bottom:0;width:240px;background:#fff;border-right:1px solid #e2e8f0;overflow-y:auto;padding:16px 0;z-index:90}
+#sidebar a{display:block;padding:7px 20px;color:#4a5568;text-decoration:none;font-size:13px;border-left:3px solid transparent;transition:all .15s}
+#sidebar a:hover{background:#f7f9fc;color:#0066cc}
+#sidebar a.active{color:#0066cc;border-left-color:#0066cc;background:#ebf4ff;font-weight:500}
+#sidebar .nav-section{padding:12px 20px 4px;font-size:11px;font-weight:600;color:#a0aec0;text-transform:uppercase;letter-spacing:.05em}
+#sidebar .nav-sub{padding-left:32px;font-size:12px}
+#content{margin-left:240px;margin-top:52px;padding:40px 48px;max-width:1140px}
+.section{margin-bottom:56px}
+.section h1{font-size:26px;font-weight:700;color:#1a202c;margin-bottom:8px;padding-bottom:12px;border-bottom:2px solid #e2e8f0}
+.section h2{font-size:19px;font-weight:600;color:#2d3748;margin:32px 0 14px}
+.section h3{font-size:15px;font-weight:600;color:#4a5568;margin:18px 0 8px}
+.section p{margin-bottom:12px;color:#4a5568}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin:20px 0}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:20px;text-align:center}
+.card .card-value{font-size:22px;font-weight:700;color:#0066cc}
+.card .card-label{font-size:12px;color:#718096;margin-top:4px}
+.prop-bar{display:flex;height:36px;border-radius:6px;overflow:hidden;margin:16px 0}
+.prop-bar .seg{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff}
+.seg-a{background:#00875a}.seg-b{background:#0066cc}.seg-c{background:#7c3aed}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}
+th{background:#f7f9fc;color:#4a5568;font-weight:600;padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0}
+td{padding:9px 12px;border-bottom:1px solid #f0f4f8;color:#4a5568}
+tr:hover td{background:#f7f9fc}
+pre,code{font-family:"SF Mono","Fira Code","Consolas",monospace}
+pre{background:#1a202c;color:#e2e8f0;padding:14px 18px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.6;margin:10px 0}
+code{background:#edf2f7;color:#c53030;padding:2px 6px;border-radius:4px;font-size:13px}
+pre code{background:none;color:inherit;padding:0}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600}
+.badge-l1{background:#ebf8ff;color:#2b6cb0}.badge-l2{background:#fffbeb;color:#b7791f}.badge-l3{background:#fff5f5;color:#c53030}.badge-ok{background:#f0fff4;color:#276749}
+.steps{display:flex;gap:0;margin:16px 0;flex-wrap:wrap}
+.step{flex:1;min-width:120px;padding:12px 14px;background:#fff;border:1px solid #e2e8f0;position:relative}
+.step:not(:last-child)::after{content:"→";position:absolute;right:-10px;top:50%;transform:translateY(-50%);color:#a0aec0;z-index:1;font-size:14px}
+.step .step-num{font-size:10px;font-weight:700;color:#0066cc;text-transform:uppercase}
+.step .step-title{font-size:13px;font-weight:600;color:#2d3748;margin-top:3px}
+.step .step-desc{font-size:11px;color:#718096;margin-top:2px}
+.info-box{background:#ebf4ff;border-left:4px solid #0066cc;padding:12px 16px;border-radius:0 6px 6px 0;margin:14px 0;font-size:13px;color:#2c5282}
+.warn-box{background:#fffbeb;border-left:4px solid #d69e2e;padding:12px 16px;border-radius:0 6px 6px 0;margin:14px 0;font-size:13px;color:#744210}
+.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0}
+.tier-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:20px}
+.tier-card .tier-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.tier-card.tier-a .tier-label{color:#00875a}.tier-card.tier-b .tier-label{color:#0066cc}.tier-card.tier-c .tier-label{color:#7c3aed}
+.tier-card .tier-name{font-size:15px;font-weight:600;color:#1a202c}
+.tier-card .tier-pct{font-size:26px;font-weight:700;margin:6px 0}
+.tier-card.tier-a .tier-pct{color:#00875a}.tier-card.tier-b .tier-pct{color:#0066cc}.tier-card.tier-c .tier-pct{color:#7c3aed}
+.tier-card .tier-desc{font-size:12px;color:#718096;line-height:1.6}
+.script-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin:16px 0}
+.script-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px}
+.script-card .script-name{font-size:14px;font-weight:700;color:#0066cc;font-family:"SF Mono",monospace}
+.script-card .script-desc{font-size:13px;color:#4a5568;margin:6px 0 8px}
+.script-card .script-cmd{background:#1a202c;color:#68d391;padding:6px 10px;border-radius:4px;font-size:12px;font-family:monospace}
+.script-card .script-output{font-size:11px;color:#718096;margin-top:5px}
+.skill-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:10px}
+.skill-card .skill-name{font-size:14px;font-weight:700;color:#7c3aed;font-family:"SF Mono",monospace}
+.skill-card .skill-meta{font-size:12px;color:#718096;margin:4px 0}
+.skill-card .skill-desc{font-size:13px;color:#4a5568}
+.rule-section{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:16px}
+.rule-section h3{margin-top:0;color:#2d3748}
+@media(max-width:900px){#sidebar{display:none}#content{margin-left:0;padding:20px}.tier-grid{grid-template-columns:1fr}.steps{flex-direction:column}.step:not(:last-child)::after{display:none}}
+</style>
+</head>
+<body>
+<header id="top-header">
+  <span class="title">AI 驱动投资管理系统</span>
+  <span class="version">v1.3 · 2026-05-26</span>
+</header>
+
+<nav id="sidebar">
+  <div class="nav-section">概览</div>
+  <a href="#overview">1. 系统概览</a>
+  <div class="nav-section">架构</div>
+  <a href="#architecture">2. 系统架构</a>
+  <a href="#arch-tiers" class="nav-sub">2.1 三档资金结构</a>
+  <a href="#arch-special" class="nav-sub">2.2 特殊资产处理</a>
+  <div class="nav-section">操作</div>
+  <a href="#dashboard">3. 每日战情室</a>
+  <a href="#workflow">4. 日常工作流</a>
+  <a href="#scripts">5. 自动化脚本</a>
+  <a href="#skills">6. AI Skills</a>
+  <div class="nav-section">规则</div>
+  <a href="#risk">7. 风控铁律</a>
+  <a href="#trading">8. 交易决策流程</a>
+  <div class="nav-section">参考</div>
+  <a href="#config">9. 配置文件说明</a>
+  <a href="#quickstart">10. 快速上手</a>
+</nav>
+
+<main id="content">
+<section class="section" id="overview">
+  <h1>AI 驱动投资管理系统</h1>
+  <p>一套以纪律性为核心的个人投资管理框架，通过 AI Skills 辅助决策、自动化脚本执行监控、严格的风控铁律约束行为，目标年化收益 10%+。</p>
+  <div class="card-grid">
+    <div class="card"><div class="card-value">¥1,285,798</div><div class="card-label">再平衡基准（A/B/C 档）</div></div>
+    <div class="card"><div class="card-value">10%+</div><div class="card-label">目标年化收益</div></div>
+    <div class="card"><div class="card-value">5–8 只</div><div class="card-label">C 档持仓数量</div></div>
+    <div class="card"><div class="card-value">9 + 5</div><div class="card-label">脚本 + AI Skills</div></div>
+  </div>
+  <div class="prop-bar">
+    <div class="seg seg-a" style="width:25%">A 档 25%</div>
+    <div class="seg seg-b" style="width:50%">B 档 50%</div>
+    <div class="seg seg-c" style="width:25%">C 档 25%</div>
+  </div>
+  <p style="font-size:12px;color:#718096;text-align:center;margin-top:4px">目标资金分配比例（再平衡基准 ¥1,285,798）</p>
+</section>
+<section class="section" id="architecture">
+  <h1>系统架构</h1>
+  <h2 id="arch-tiers">2.1 三档资金结构</h2>
+  <p>系统将可投资资金划分为三个功能明确的档位，各档独立管理、协同运作。</p>
+  <div class="tier-grid">
+    <div class="tier-card tier-a">
+      <div class="tier-label">A 档 · 防御层</div>
+      <div class="tier-name">现金 / 债券</div>
+      <div class="tier-pct">25%</div>
+      <div class="tier-desc">目标 ¥321,450<br>活期存款 + 短期债券基金<br>提供流动性保障与防御缓冲</div>
+    </div>
+    <div class="tier-card tier-b">
+      <div class="tier-label">B 档 · 核心层</div>
+      <div class="tier-name">核心 ETF</div>
+      <div class="tier-pct">50%</div>
+      <div class="tier-desc">目标 ¥642,899<br>港股科技 / 中证A500 / 中证红利 / 创业板 / 标普500(条件)<br>估值+政策+产业三维评估，分阶段建仓</div>
+    </div>
+    <div class="tier-card tier-c">
+      <div class="tier-label">C 档 · 主动层</div>
+      <div class="tier-name">主动选股</div>
+      <div class="tier-pct">25%</div>
+      <div class="tier-desc">目标 ¥321,450<br>5–8 只高信念个股<br>每季度 thesis 评分更新</div>
+    </div>
+  </div>
+  <h3>B 档 ETF 目标配置（v2 · 2026-05-25）</h3>
+  <p style="font-size:12px;color:#718096;margin-bottom:8px">v2 升级：加入中证A500（十五五新质生产力）、中证红利（防御底仓）、创业板（条件触发），移除沪深300/中证500/黄金ETF。</p>
+  <table>
+    <tr><th>代码</th><th>名称</th><th>目标比例</th><th>目标市值</th><th>建仓策略</th></tr>
+    <tr><td><code>513010</code></td><td>港股科技 ETF</td><td>25%</td><td>¥160,725</td><td>Phase 1 立即建仓 ¥80,000 + Phase 2 定投补足</td></tr>
+    <tr><td><code>563360</code></td><td>中证A500 ETF</td><td>25%</td><td>¥160,725</td><td>Phase 2 12周定投 ¥13,394/周（PE百分位偏高，定投摊平）</td></tr>
+    <tr><td><code>515180</code></td><td>中证红利 ETF</td><td>10%</td><td>¥64,290</td><td>Phase 1 一次性建仓 ¥48,000 + Phase 2 补足</td></tr>
+    <tr><td><code>159915</code></td><td>创业板 ETF</td><td>15%</td><td>¥96,435</td><td>Phase 3 条件触发（PE&lt;42倍 或 指数跌&gt;10%）</td></tr>
+    <tr><td><code>513500</code></td><td>标普500 ETF</td><td>0%→条件</td><td>¥32,145</td><td>现金储备触发（PE&lt;22倍 且 溢价&lt;2%）</td></tr>
+    <tr><td style="text-decoration:line-through;color:#a0aec0"><code>159941</code></td><td style="text-decoration:line-through;color:#a0aec0">纳指100 ETF</td><td style="color:#c53030">出清中</td><td style="color:#a0aec0">¥0</td><td style="color:#718096">4批8周出清，PE&lt;25暂停。释放资金转入港股科技/A500/红利</td></tr>
+  </table>
+  <h2 id="arch-special">2.2 特殊资产处理说明</h2>
+  <div class="info-box"><strong>限制性股票（RSU）处理原则：</strong>RSU 等非常规资产不纳入三档架构，不参与日常再平衡计算。减持所得直接进入 A/B/C 再平衡流程。</div>
+  <p>以美团RSU为例，系统采用<strong>两阶段再平衡框架</strong>：</p>
+  <table>
+    <tr><th>阶段</th><th>时间</th><th>处理方式</th></tr>
+    <tr><td>第一阶段</td><td>当前 → 2027-11</td><td>美团RSU 排除在再平衡基准之外；减持所得按 30%→A / 70%→B 分配</td></tr>
+    <tr><td>第二阶段</td><td>2027-11 之后</td><td>第二档完成后，RSU 资产重新纳入整体计算，重设再平衡基准</td></tr>
+  </table>
+</section>
+<section class="section" id="dashboard">
+  <h1>3. 每日战情室（Dashboard）</h1>
+  <p>每日战情室是本系统的<strong>统一指挥中心</strong>。所有待办事项汇整到 <code>config/execution_tracker.yaml</code>，由 <code>scripts/dashboard.py</code> 生成自包含 HTML 页面，提供今日待办、执行进度、合规预警、盘前/盘后检查清单的一站式视图。</p>
+
+  <div class="info-box"><strong>设计理念：</strong>数据层与视图层分离。execution_tracker.yaml 是唯一真相源，手动更新状态；DASHBOARD.html 由脚本自动生成，不手动编辑。支持三种模式切换：标准模式、盘前模式（--pre-market）、盘后模式（--post-market）。</div>
+
+  <h2>3.1 页面结构</h2>
+  <table>
+    <tr><th>模块</th><th>内容</th><th>说明</th></tr>
+    <tr><td>指标卡片</td><td>总资产 / A档 / B档 / C档 / 活跃告警</td><td>一目了然，颜色编码（绿/蓝/紫/红）</td></tr>
+    <tr><td>今日待执行</td><td>按优先级排序的行动清单</td><td>合规整改 > 计划执行 > 日常任务</td></tr>
+    <tr><td>执行进度</td><td>C仓位重组 / B仓建仓 / 合规整改 / Thesis维护</td><td>进度条 + 完成数/总数 + 进行中</td></tr>
+    <tr><td>合规预警</td><td>活跃违规项及剩余天数倒计时</td><td>颜色编码：≤7天红色 / ≤30天黄色 / >30天蓝色</td></tr>
+    <tr><td>盘前检查</td><td>隔夜市场 / 今日财报 / 宏观事件 / 待执行确认</td><td>仅在 --pre-market 模式展示</td></tr>
+    <tr><td>盘后检查</td><td>运行快照 / 更新追踪器 / 检查告警 / 记录日志</td><td>仅在 --post-market 模式展示</td></tr>
+    <tr><td>近期关键日期</td><td>未来两周重要事件时间线</td><td>紧急日期高亮标注</td></tr>
+  </table>
+
+  <h2>3.2 追踪事项分类</h2>
+  <table>
+    <tr><th>分类</th><th>来源</th><th>事项数</th><th>状态流转</th></tr>
+    <tr><td>C 仓位重组</td><td>agenda.md + agenda_summary.md</td><td>6 项</td><td>pending → in_progress → done</td></tr>
+    <tr><td>B 仓 ETF 建仓</td><td>b_tranche_execution_plan.yaml</td><td>20 项</td><td>含 Phase 1/2/3、纳指出清、现金储备条件触发</td></tr>
+    <tr><td>合规整改</td><td>rules.yaml active_breaches</td><td>3 项</td><td>含截止日期倒计时和整改进度</td></tr>
+    <tr><td>Thesis 维护</td><td>rules.yaml thesis_maintenance</td><td>3 项</td><td>L2 审视线触发后强制更新</td></tr>
+    <tr><td>日常检查</td><td>盘前/盘后清单</td><td>8 项</td><td>每日循环</td></tr>
+  </table>
+
+  <h2>3.3 使用方法</h2>
+  <pre># 盘前 — 查看今日待办 + 盘前检查清单
+python scripts/dashboard.py --pre-market
+open DASHBOARD.html
+
+# 盘中执行后 — 手动更新 execution_tracker.yaml 状态
+
+# 盘后 — 查看进度 + 盘后检查清单
+python scripts/daily_snapshot.py
+python scripts/dashboard.py --post-market
+open DASHBOARD.html
+
+# 随时 — 查看当前全景
+python scripts/dashboard.py
+open DASHBOARD.html</pre>
+  <p style="font-size:12px;color:#718096">所有待办事项状态在 <code>config/execution_tracker.yaml</code> 中手动更新，DASHBOARD.html 由 dashboard.py 自动生成。</p>
+</section>
+
+<section class="section" id="workflow">
+  <h1>日常工作流</h1>
+  <div class="info-box"><strong>执行时间设计原则：</strong>所有时间点以 A 股收盘（15:00）为核心锚点。收盘后执行快照可确保日终价格已确定，告警不因盘中波动误触发；周一开盘前读简报可在市场噪音介入前完成信息摄入；月末/季末收盘后执行更新可保证数据完整性。</div>
+
+  <h2>4.1 每日（5–10 分钟）· <span style="color:#0066cc">盘前 09:00 + 盘后 15:15</span></h2>
+  <p style="font-size:13px;color:#718096">A 股 09:30 开盘，盘前 09:00 运行 Dashboard 查看今日待办。15:00 收盘后等待 15 分钟让数据源完成日终结算后执行快照。若持有港股，可推迟至 16:15（港股 16:00 收盘）。</p>
+  <div class="steps">
+    <div class="step"><div class="step-num">09:00</div><div class="step-title">盘前战情室</div><div class="step-desc">运行 dashboard.py --pre-market，查看今日待办</div></div>
+    <div class="step"><div class="step-num">09:15</div><div class="step-title">盘中执行</div><div class="step-desc">按计划执行交易，更新 tracker 状态</div></div>
+    <div class="step"><div class="step-num">15:00</div><div class="step-title">A 股收盘</div><div class="step-desc">等待日终价格确定</div></div>
+    <div class="step"><div class="step-num">15:15</div><div class="step-title">运行每日快照</div><div class="step-desc">拉取日终行情，生成持仓快照</div></div>
+    <div class="step"><div class="step-num">15:20</div><div class="step-title">盘后战情室</div><div class="step-desc">dashboard.py --post-market，更新进度</div></div>
+    <div class="step"><div class="step-num">15:25</div><div class="step-title">记录情绪</div><div class="step-desc">若有交易冲动，写入 trades/ 冷静期</div></div>
+  </div>
+  <pre># 盘前
+python scripts/dashboard.py --pre-market
+
+# 盘后
+python scripts/daily_snapshot.py
+python scripts/dashboard.py --post-market</pre>
+  <p style="font-size:12px;color:#718096">输出：<code>DASHBOARD.html</code>（盘前/盘后模式）　　<code>reviews/daily/YYYY-MM-DD.md</code>（快照）　　告警自动触发 alert_monitor.py 推送</p>
+
+  <h2>4.2 每周（30 分钟，周一）· <span style="color:#0066cc">09:00 执行</span></h2>
+  <p style="font-size:13px;color:#718096">A 股 09:30 开盘，09:00 执行留出 30 分钟阅读窗口。开盘前是"决策窗口"：信息已摄入，市场尚未开盘，可冷静判断，避免盘中噪音干扰周度判断。</p>
+  <div class="steps">
+    <div class="step"><div class="step-num">09:00</div><div class="step-title">生成周简报</div><div class="step-desc">汇总上周告警与持仓状态</div></div>
+    <div class="step"><div class="step-num">09:02</div><div class="step-title">获取市场信息</div><div class="step-desc">Hermes 搜索持仓公告、财报窗口、宏观数据发布（自动写入周报）</div></div>
+    <div class="step"><div class="step-num">09:05</div><div class="step-title">读周简报</div><div class="step-desc">持仓公司本周重要事件与宏观日历</div></div>
+    <div class="step"><div class="step-num">09:20</div><div class="step-title">检查冷静期</div><div class="step-desc">查看哪些决策已过冷静期可执行</div></div>
+    <div class="step"><div class="step-num">09:25</div><div class="step-title">更新待办</div><div class="step-desc">记录本周需要跟进的事项</div></div>
+  </div>
+  <pre>python scripts/weekly_brief.py
+python scripts/hermes_enrich.py
+python scripts/trade_log.py status</pre>
+  <p style="font-size:12px;color:#718096">输出：<code>reviews/weekly/YYYY-WNN.md</code>　　hermes_enrich.py 依赖本地 Hermes Agent，约需 60–90 秒</p>
+
+  <h2>4.3 每月末（2 小时）· <span style="color:#0066cc">最后一个交易日 15:30 执行</span></h2>
+  <p style="font-size:13px;color:#718096">月末最后一个交易日收盘后 30 分钟执行，确保月度数据完整。thesis 评分基于完整月度表现，不受下月行情影响。通常为每月最后一个周五，节假日顺延。</p>
+  <div class="steps">
+    <div class="step"><div class="step-num">15:30</div><div class="step-title">生成月度清单</div><div class="step-desc">标记需更新的 thesis</div></div>
+    <div class="step"><div class="step-num">15:40</div><div class="step-title">更新 Thesis</div><div class="step-desc">运行 thesis-tracker，更新每只股票评分</div></div>
+    <div class="step"><div class="step-num">16:30</div><div class="step-title">仓位检查</div><div class="step-desc">检查 B/C 档偏离度，评估再平衡需求</div></div>
+    <div class="step"><div class="step-num">17:30</div><div class="step-title">完成归档</div><div class="step-desc">月度报告写入 reviews/monthly/</div></div>
+  </div>
+  <pre>python scripts/monthly_update.py
+python scripts/rebalance_check.py</pre>
+  <p style="font-size:12px;color:#718096">输出：<code>reviews/monthly/YYYY-MM.md</code></p>
+
+  <h2>4.4 每季度末（4–6 小时）· <span style="color:#0066cc">季末最后一个交易日 15:30 执行</span></h2>
+  <p style="font-size:13px;color:#718096">季度末（3/6/9/12 月末）最后一个交易日收盘后执行。季度诊断已包含月度更新，无需单独再跑 monthly_update.py。</p>
+  <div class="steps">
+    <div class="step"><div class="step-num">15:30</div><div class="step-title">季度诊断</div><div class="step-desc">全量持仓诊断，含相关性分析</div></div>
+    <div class="step"><div class="step-num">16:30</div><div class="step-title">ETF 再平衡</div><div class="step-desc">执行 B 档 ETF 季度再平衡</div></div>
+    <div class="step"><div class="step-num">18:00</div><div class="step-title">规则回顾</div><div class="step-desc">回顾 rules.yaml 是否需要调整</div></div>
+    <div class="step"><div class="step-num">20:00</div><div class="step-title">候选池扫描</div><div class="step-desc">运行 idea-generation，更新候选池</div></div>
+  </div>
+  <pre>python scripts/quarterly_review.py
+python scripts/rebalance_check.py</pre>
+  <p style="font-size:12px;color:#718096">输出：<code>reviews/quarterly/YYYY-QN.md</code>　　季度诊断已内含月度更新，无需重复执行</p>
+
+  <h2>4.5 执行时间汇总</h2>
+  <table>
+    <tr><th>频率</th><th>执行时间</th><th>脚本</th><th>耗时</th><th>时间选择依据</th></tr>
+    <tr><td>每日盘前（工作日）</td><td><strong>09:00</strong></td><td>dashboard.py --pre-market</td><td>2 分钟</td><td>开盘前 30 分钟查看今日待办，确认执行计划</td></tr>
+    <tr><td>每日盘后（工作日）</td><td><strong>15:15</strong></td><td>daily_snapshot.py + dashboard.py --post-market</td><td>5–10 分钟</td><td>A 股收盘后 15 分钟，日终价格已确定</td></tr>
+    <tr><td>每周一</td><td><strong>09:00</strong></td><td>weekly_brief.py + hermes_enrich.py + trade_log.py</td><td>30 分钟</td><td>开盘前 30 分钟，决策窗口，无盘中噪音</td></tr>
+    <tr><td>每月末最后交易日</td><td><strong>15:30</strong></td><td>monthly_update.py + rebalance_check.py</td><td>2 小时</td><td>月度数据完整，thesis 评分不受下月影响</td></tr>
+    <tr><td>每季末最后交易日</td><td><strong>15:30</strong></td><td>quarterly_review.py + rebalance_check.py</td><td>4–6 小时</td><td>季度数据完整，已内含月度更新</td></tr>
+    <tr><td>按需</td><td>任意时间</td><td>dashboard.py</td><td>1 分钟</td><td>随时查看当前全景战情</td></tr>
+    <tr><td>按需</td><td>15:15（收盘后）</td><td>rebalance_check.py</td><td>10 分钟</td><td>仓位偏离 ±5% 时触发</td></tr>
+    <tr><td>按需</td><td>任意时间</td><td>trade_log.py</td><td>5 分钟</td><td>执行交易前查询冷静期状态</td></tr>
+  </table>
+</section>
+<section class="section" id="scripts">
+  <h1>自动化脚本</h1>
+  <p>9 个核心 Python 脚本，覆盖从每日战情室、每日监控到季度诊断的完整工作流。所有脚本读取 <code>config/rules.yaml</code> 作为核心配置。</p>
+  <div class="script-grid">
+    <div class="script-card">
+      <div class="script-name">dashboard.py</div>
+      <div class="script-desc">每日<strong>盘前 09:00 / 盘后 15:15</strong> 运行。读取 execution_tracker.yaml 生成 DASHBOARD.html，统一展示今日待办、执行进度、合规预警、盘前/盘后检查清单。支持 <code>--pre-market</code> / <code>--post-market</code> 模式切换。</div>
+      <div class="script-cmd">python scripts/dashboard.py
+python scripts/dashboard.py --pre-market
+python scripts/dashboard.py --post-market</div>
+      <div class="script-output">→ DASHBOARD.html</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">daily_snapshot.py</div>
+      <div class="script-desc">每日 <strong>15:15</strong> 运行（A 股收盘后 15 分钟）。拉取日终行情（腾讯财经 API 批量请求），生成持仓快照，触发告警检查。持有港股时可推迟至 16:15。</div>
+      <div class="script-cmd">python scripts/daily_snapshot.py</div>
+      <div class="script-output">→ reviews/daily/YYYY-MM-DD.md</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">alert_monitor.py</div>
+      <div class="script-desc">告警触发后运行。调用 Claude 分析告警原因，生成处置建议，支持手机推送通知。</div>
+      <div class="script-cmd">python scripts/alert_monitor.py</div>
+      <div class="script-output">→ alerts/YYYY-MM-DD_*.md</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">weekly_brief.py</div>
+      <div class="script-desc">每周一 <strong>09:00</strong> 运行（开盘前 30 分钟）。汇总本周告警、持仓状态快照、近 14 天截止事项，生成周报框架。</div>
+      <div class="script-cmd">python scripts/weekly_brief.py</div>
+      <div class="script-output">→ reviews/weekly/YYYY-WNN.md</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">hermes_enrich.py</div>
+      <div class="script-desc">每周一 <strong>09:02</strong> 运行（weekly_brief.py 之后）。调用本地 Hermes Agent 搜索持仓公司本周公告/财报窗口和宏观数据发布日历，自动写入周报"本周关注事项"区域，无需手动填写。</div>
+      <div class="script-cmd">python scripts/hermes_enrich.py</div>
+      <div class="script-output">→ 追加写入 reviews/weekly/YYYY-WNN.md</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">monthly_update.py</div>
+      <div class="script-desc">月末最后一个交易日 <strong>15:30</strong> 运行。更新所有持仓的 thesis 评分卡，生成月度绩效报告。月度数据完整后执行，评分不受下月行情影响。</div>
+      <div class="script-cmd">python scripts/monthly_update.py</div>
+      <div class="script-output">→ reviews/monthly/YYYY-MM.md</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">quarterly_review.py</div>
+      <div class="script-desc">季末最后一个交易日 <strong>15:30</strong> 运行（3/6/9/12 月末）。全量持仓诊断，含相关性分析、行业集中度、ETF 偏离度。已内含月度更新，无需重复执行 monthly_update.py。</div>
+      <div class="script-cmd">python scripts/quarterly_review.py</div>
+      <div class="script-output">→ reviews/quarterly/YYYY-QN.md</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">rebalance_check.py</div>
+      <div class="script-desc">按需运行。检查 B/C 仓位实际分配 vs 目标比例，输出再平衡建议。支持 <code>--no-fetch</code> 离线模式。</div>
+      <div class="script-cmd">python scripts/rebalance_check.py</div>
+      <div class="script-output">→ reviews/rebalance/YYYY-MM-DD.md</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">trade_log.py</div>
+      <div class="script-desc">交易冷静期管理。扫描 decision_*.md，显示哪些决策已过冷静期可执行，并创建执行日志。</div>
+      <div class="script-cmd">python scripts/trade_log.py
+python scripts/trade_log.py status
+python scripts/trade_log.py log &lt;编号&gt; &lt;股数&gt; &lt;价格&gt;</div>
+      <div class="script-output">→ trades/log_&lt;编号&gt;_YYYY-MM-DD.md</div>
+    </div>
+  </div>
+</section>
+<section class="section" id="skills">
+  <h1>6. AI Skills</h1>
+  <p>5 个 Claude 提示词模板，存放于 <code>prompts/</code> 目录。在 Claude Code 中通过 <code>/skill-name</code> 触发，或直接将模板内容粘贴给 Claude。</p>
+  <div class="skill-card">
+    <div class="skill-name">thesis-tracker</div>
+    <div class="skill-meta">触发时机：每月末 / 财报后 / 回撤 ≥15% 时</div>
+    <div class="skill-desc">对持仓股票进行五维度评分（业务质量、竞争优势、管理层、估值、风险），输出结构化评分卡。评分 ≤2.0 持续两季度触发强制清仓。</div>
+  </div>
+  <div class="skill-card">
+    <div class="skill-name">comps-analysis</div>
+    <div class="skill-meta">触发时机：买入前 / 每季度必跑</div>
+    <div class="skill-desc">对目标股票进行估值横向对比（PE/PB/PS/EV-EBITDA），与同行业可比公司对比，输出估值溢价/折价分析。</div>
+  </div>
+  <div class="skill-card">
+    <div class="skill-name">earnings-analysis</div>
+    <div class="skill-meta">触发时机：财报发布后 48 小时内必跑</div>
+    <div class="skill-desc">解读财报关键指标（营收、毛利率、经营现金流、资本开支），对比预期与实际，评估是否触发 thesis 更新。</div>
+  </div>
+  <div class="skill-card">
+    <div class="skill-name">ic-memo</div>
+    <div class="skill-meta">触发时机：新建仓前必须先跑（硬性要求）</div>
+    <div class="skill-desc">买入决策备忘录。强制回答七个反人性问题，输出结构化买入理由、仓位规划、退出预案。未跑 ic-memo 不得建仓。</div>
+  </div>
+  <div class="skill-card">
+    <div class="skill-name">idea-generation</div>
+    <div class="skill-meta">触发时机：每月扫候选池</div>
+    <div class="skill-desc">基于当前宏观判断（<code>config/macro.md</code>）和组合缺口，扫描候选标的，输出初步筛选列表供进一步研究。</div>
+  </div>
+</section>
+<section class="section" id="risk">
+  <h1>7. 风控铁律</h1>
+  <p>所有规则存储于 <code>config/rules.yaml</code>，修改需经 7 天冷静期 + 书面理由。在已存在 active_breaches 时，禁止提高阈值或添加自我豁免。</p>
+
+  <div class="rule-section">
+    <h3>7.1 仓位集中度限制</h3>
+    <table>
+      <tr><th>规则</th><th>阈值</th><th>触发动作</th><th>宽限期</th></tr>
+      <tr><td>单一个股上限</td><td>25%</td><td>强制降权，目标降至 ≤20%</td><td>30 天</td></tr>
+      <tr><td>前 3 大持仓合计</td><td>50%</td><td>预警，触发组合复盘</td><td>—</td></tr>
+      <tr><td>前 5 大持仓合计</td><td>70%</td><td>强制降仓</td><td>60 天</td></tr>
+      <tr><td>单一行业上限</td><td>40%</td><td>预警</td><td>—</td></tr>
+      <tr><td>新能源/电力链主题</td><td>35%（硬上限 50%）</td><td>预警 / 强制降仓</td><td>—</td></tr>
+    </table>
+  </div>
+
+  <div class="rule-section">
+    <h3>7.2 组合回撤控制</h3>
+    <table>
+      <tr><th>级别</th><th>阈值</th><th>措施</th></tr>
+      <tr><td><span class="badge badge-l1">L1 预警</span></td><td>-10%</td><td>组合复盘；补仓需额外满足 thesis ≥ 4.0</td></tr>
+      <tr><td><span class="badge badge-l2">L2 控制</span></td><td>-15%</td><td>暂停新建个股 30 天；禁止向亏损个股补仓</td></tr>
+      <tr><td><span class="badge badge-l3">L3 硬刹车</span></td><td>-20%</td><td>停止所有新建仓 60 天；主动个股总仓位降至 ≤25%；现金/短债提高到 ≥15%</td></tr>
+    </table>
+  </div>
+
+  <div class="rule-section">
+    <h3>7.3 单股止损线</h3>
+    <table>
+      <tr><th>级别</th><th>浮亏阈值</th><th>措施</th></tr>
+      <tr><td><span class="badge badge-l1">L1 关注</span></td><td>-10%</td><td>记录下跌原因；补仓需 thesis ≥ 4.0</td></tr>
+      <tr><td><span class="badge badge-l2">L2 审视</span></td><td>-20%</td><td>7 天内给出持有/减仓/清仓决策；强制更新 thesis</td></tr>
+      <tr><td><span class="badge badge-l3">L3 强制</span></td><td>-30%</td><td>thesis &lt; 3.0：减仓至少 50%；thesis ≥ 3.0：只维持不补仓</td></tr>
+    </table>
+  </div>
+
+  <div class="rule-section">
+    <h3>7.4 交易行为规则</h3>
+    <table>
+      <tr><th>规则</th><th>参数</th></tr>
+      <tr><td>新建仓冷静期</td><td>7 天</td></tr>
+      <tr><td>卖出决策冷静期</td><td>3 天（强制减仓豁免）</td></tr>
+      <tr><td>补仓决策冷静期</td><td>5 天</td></tr>
+      <tr><td>单笔交易上限</td><td>总组合 5% / 该标的仓位 40%</td></tr>
+      <tr><td>单日交易总额上限</td><td>总组合 10%</td></tr>
+      <tr><td>初始建仓上限</td><td>总组合 5%</td></tr>
+    </table>
+    <h3 style="margin-top:16px">资金路由规则（减仓回笼资金）</h3>
+    <div class="prop-bar" style="height:28px">
+      <div class="seg seg-a" style="width:30%;font-size:11px">A 档 30%</div>
+      <div class="seg seg-b" style="width:70%;font-size:11px">B 档 70%</div>
+    </div>
+    <p style="font-size:12px;color:#718096">减仓所得：30% 进 A 档（现金/短债），70% 进 B 档（核心ETF），0% 重新进入个股</p>
+  </div>
+
+  <div class="rule-section">
+    <h3>7.5 规则修改约束</h3>
+    <ul style="font-size:13px;color:#4a5568;padding-left:20px;line-height:2">
+      <li>修改 <code>rules.yaml</code> 需经 <strong>7 天冷静期</strong> + 书面理由</li>
+      <li>存在 active_breaches 时，禁止提高违规相关阈值</li>
+      <li>禁止为亏损个股单独创建豁免</li>
+      <li>禁止在亏损状态下提高单股仓位上限</li>
+      <li>每季度回顾一次铁律合理性</li>
+    </ul>
+  </div>
+
+  <div class="rule-section">
+    <h3>7.6 参考案例：违规触发与整改流程</h3>
+    <div class="warn-box"><strong>案例：单股超仓（南山铝业）</strong><br>持仓占 C 仓位 45.81%，超单股上限 25%。触发强制降权告警，30 天宽限期内必须降至 ≤25%。整改路径：创建 decision_*.md → 冷静期 3 天 → 执行减仓 → 回笼资金按 30%/70% 分配至 A/B 档 → 更新持仓配置。</div>
+    <p style="font-size:13px;color:#4a5568">整改链路：<strong>告警触发</strong> → <strong>创建决策文件</strong>（trades/decision_*.md）→ <strong>冷静期等待</strong> → <strong>执行交易</strong>（trade_log.py log）→ <strong>更新配置</strong>（holdings.csv / core_etf.csv）→ <strong>验证合规</strong>（daily_snapshot.py）</p>
+  </div>
+</section>
+<section class="section" id="trading">
+  <h1>8. 交易决策流程</h1>
+
+  <h2>8.1 买入流程</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">Step 1</div><div class="step-title">运行 ic-memo</div><div class="step-desc">必须先跑，不可跳过</div></div>
+    <div class="step"><div class="step-num">Step 2</div><div class="step-title">创建决策文件</div><div class="step-desc">trades/decision_*.md</div></div>
+    <div class="step"><div class="step-num">Step 3</div><div class="step-title">冷静期 7 天</div><div class="step-desc">等待冷静期结束</div></div>
+    <div class="step"><div class="step-num">Step 4</div><div class="step-title">执行交易</div><div class="step-desc">初始仓位 ≤5%</div></div>
+    <div class="step"><div class="step-num">Step 5</div><div class="step-title">更新配置</div><div class="step-desc">更新 holdings.csv</div></div>
+  </div>
+
+  <h2>8.2 卖出流程</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">Step 1</div><div class="step-title">创建决策文件</div><div class="step-desc">记录卖出依据</div></div>
+    <div class="step"><div class="step-num">Step 2</div><div class="step-title">冷静期 3 天</div><div class="step-desc">强制减仓可豁免</div></div>
+    <div class="step"><div class="step-num">Step 3</div><div class="step-title">执行交易</div><div class="step-desc">单笔 ≤仓位 40%</div></div>
+    <div class="step"><div class="step-num">Step 4</div><div class="step-title">资金路由</div><div class="step-desc">30%→A / 70%→B</div></div>
+    <div class="step"><div class="step-num">Step 5</div><div class="step-title">更新配置</div><div class="step-desc">更新 holdings.csv + core_etf.csv</div></div>
+  </div>
+
+  <h2>8.3 决策文件规范</h2>
+  <p>文件路径：<code>trades/decision_NNN_标的_操作.md</code></p>
+  <p>必须包含以下章节：</p>
+  <table>
+    <tr><th>章节</th><th>内容</th></tr>
+    <tr><td>决策事实</td><td>标的、股数、价格、金额</td></tr>
+    <tr><td>决策依据</td><td>rules.yaml 引用 + thesis 引用</td></tr>
+    <tr><td>执行节奏</td><td>分几笔、何时执行、触发条件</td></tr>
+    <tr><td>退出预案</td><td>盈利退出 / 止损退出条件</td></tr>
+    <tr><td>复盘节点</td><td>执行后何时回看</td></tr>
+  </table>
+  <p>个股交易超总仓位 1.5% 必须留痕；ETF 交易超 5% 必须留痕。</p>
+
+  <h2>8.4 反人性检查清单</h2>
+  <p style="font-size:13px;color:#4a5568">每次决策前必须自问：</p>
+  <ul style="font-size:13px;color:#4a5568;padding-left:20px;line-height:2">
+    <li>如果这笔钱现在是现金，今天的价格我会买它吗？</li>
+    <li>我是在做决策，还是在为已有的情绪寻找理由？</li>
+    <li>如果决策错了，我能承受的最大损失是多少？</li>
+    <li>这个决策违反了哪一条 rules.yaml？我有正当豁免理由吗？</li>
+    <li>30 天后回看这个决策，我会为它感到骄傲吗？</li>
+    <li>我买它，是因为未来风险收益比好，还是因为我已经亏损不甘心？</li>
+    <li>如果这只股票今天清仓，我会重新买回同样仓位吗？</li>
+  </ul>
+</section>
+<section class="section" id="config">
+  <h1>9. 配置文件说明</h1>
+  <table>
+    <tr><th>文件</th><th>用途</th><th>修改频率</th><th>注意事项</th></tr>
+    <tr>
+      <td><code>config/execution_tracker.yaml</code></td>
+      <td>统一执行追踪数据文件，所有待办事项的状态记录</td>
+      <td>每次执行后</td>
+      <td>手动更新 status 字段（pending/in_progress/done/skipped/blocked）；dashboard.py 读取此文件生成 DASHBOARD.html</td>
+    </tr>
+    <tr>
+      <td><code>config/rules.yaml</code></td>
+      <td>风控铁律核心配置，所有脚本的规则来源</td>
+      <td>季度回顾</td>
+      <td>修改需 7 天冷静期 + 书面理由；存在 active_breaches 时禁止提高阈值</td>
+    </tr>
+    <tr>
+      <td><code>config/capital.yaml</code></td>
+      <td>资金配置参数：再平衡基准、各档目标金额、RSU 信息</td>
+      <td>资产变动时</td>
+      <td>rebalance_base_capital 需手动维护；RSU 减持后更新 meituan_rsu_value</td>
+    </tr>
+    <tr>
+      <td><code>config/holdings.csv</code></td>
+      <td>C 档主动持仓主表：代码、市场、股数、成本价、行业</td>
+      <td>每次交易后</td>
+      <td>market 字段：A 股填 A，港股填 HK；cost_price 为均摊成本价</td>
+    </tr>
+    <tr>
+      <td><code>config/core_etf.csv</code></td>
+      <td>B 档 ETF 配置：代码、份额、成本价、目标比例</td>
+      <td>每次 ETF 交易后</td>
+      <td>shares=0 表示尚未建仓；target_ratio 合计必须等于 1.0</td>
+    </tr>
+    <tr>
+      <td><code>config/cash_positions.csv</code></td>
+      <td>A 档现金/债券持仓：类型、市值、年化收益</td>
+      <td>每月末</td>
+      <td>活期存款填 CASH，债券基金填实际代码</td>
+    </tr>
+    <tr>
+      <td><code>config/macro.md</code></td>
+      <td>当前宏观判断，供 ic-memo 和 idea-generation 参考</td>
+      <td>季度更新</td>
+      <td>新建仓必须与当前宏观判断一致</td>
+    </tr>
+  </table>
+</section>
+<section class="section" id="quickstart">
+  <h1>10. 快速上手</h1>
+
+  <h2>10.1 环境要求</h2>
+  <table>
+    <tr><th>依赖</th><th>版本</th><th>说明</th></tr>
+    <tr><td>Python</td><td>3.11+</td><td>推荐使用 uv 管理</td></tr>
+    <tr><td>PyYAML</td><td>任意</td><td><code>pip install pyyaml</code></td></tr>
+    <tr><td>网络</td><td>—</td><td>需能访问 qt.gtimg.cn（腾讯财经 API）</td></tr>
+  </table>
+
+  <h2>10.2 首次运行（5 步）</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">Step 1</div><div class="step-title">克隆仓库</div><div class="step-desc">git clone 到本地</div></div>
+    <div class="step"><div class="step-num">Step 2</div><div class="step-title">安装依赖</div><div class="step-desc">pip install pyyaml</div></div>
+    <div class="step"><div class="step-num">Step 3</div><div class="step-title">更新持仓</div><div class="step-desc">编辑 holdings.csv 和 core_etf.csv</div></div>
+    <div class="step"><div class="step-num">Step 4</div><div class="step-title">更新资金</div><div class="step-desc">编辑 capital.yaml</div></div>
+    <div class="step"><div class="step-num">Step 5</div><div class="step-title">运行快照</div><div class="step-desc">python scripts/daily_snapshot.py</div></div>
+  </div>
+  <pre>pip install pyyaml
+python scripts/daily_snapshot.py</pre>
+
+  <h2>10.3 常见问题</h2>
+  <table>
+    <tr><th>问题</th><th>原因</th><th>解决方案</th></tr>
+    <tr><td>行情获取失败</td><td>网络问题或 API 限流</td><td>检查网络；使用 <code>--no-fetch</code> 离线模式</td></tr>
+    <tr><td>yaml 模块未找到</td><td>未安装 PyYAML</td><td><code>pip install pyyaml</code></td></tr>
+    <tr><td>港股价格为 None</td><td>代码格式错误</td><td>holdings.csv 中港股 market 填 HK，code 填 5 位数字（如 02015）</td></tr>
+    <tr><td>冷静期计算错误</td><td>决策文件缺少日期</td><td>确保 decision_*.md 文件头部包含"创建时间：YYYY-MM-DD"</td></tr>
+    <tr><td>再平衡基准不准确</td><td>capital.yaml 未更新</td><td>每次资产变动后手动更新 rebalance_base_capital</td></tr>
+  </table>
+
+  <div class="info-box" style="margin-top:24px">
+    <strong>提示：</strong>所有脚本均可通过 <code>python scripts/&lt;script&gt;.py --help</code> 查看用法说明。日常使用建议将 <code>daily_snapshot.py</code> 设置为收盘后自动运行。
+  </div>
+</section>
+
+<div style="text-align:center;padding:40px 0;color:#a0aec0;font-size:12px;border-top:1px solid #e2e8f0;margin-top:40px">
+  AI 驱动投资管理系统 · v1.3 · 生成于 2026-05-26<br>
+  本文档由系统自动生成，数据来源于 config/ 目录配置文件
+</div>
+</main>
+
+<script>
+const sections = document.querySelectorAll('.section');
+const navLinks = document.querySelectorAll('#sidebar a');
+window.addEventListener('scroll', () => {
+  let cur = '';
+  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 80) cur = s.id; });
+  navLinks.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + cur);
+  });
+});
+</script>
+</body>
+</html>

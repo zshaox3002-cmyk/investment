@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日战情室 · 2026-05-26</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;background:#f0f2f5;color:#1a202c;font-size:14px;line-height:1.6}
+
+/* ── Top Bar ── */
+#topbar{background:#0d1b2a;color:#fff;padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.2)}
+#topbar .title{font-size:17px;font-weight:700;letter-spacing:.02em}
+#topbar .title span{color:#5b9bd5}
+#topbar .meta{font-size:12px;color:#8899aa}
+#topbar .meta .mode{background:rgba(255,255,255,.12);padding:3px 10px;border-radius:12px;margin-left:10px}
+#topbar .alerts-badge{background:#c53030;color:#fff;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600;margin-left:8px}
+
+/* ── Main Content ── */
+#main{max-width:1320px;margin:0 auto;padding:24px}
+
+/* ── Metric Cards Row ── */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+.metric-card{background:#fff;border-radius:10px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:4px solid #e2e8f0}
+.metric-card .mc-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#718096;margin-bottom:6px}
+.metric-card .mc-value{font-size:22px;font-weight:700}
+.metric-card .mc-sub{font-size:11px;color:#a0aec0;margin-top:3px}
+.metric-card.card-total{border-left-color:#0d1b2a}
+.metric-card.card-a{border-left-color:#00875a}
+.metric-card.card-b{border-left-color:#0066cc}
+.metric-card.card-c{border-left-color:#7c3aed}
+.metric-card.card-d{border-left-color:#718096}
+.metric-card.card-alert{border-left-color:#c53030}
+
+/* ── Section ── */
+.section{margin-bottom:28px}
+.section-title{font-size:15px;font-weight:700;color:#1a202c;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;display:flex;align-items:center;gap:10px}
+.section-title .icon{font-size:18px}
+
+/* ── Table ── */
+.data-table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.data-table th{background:#f7f9fc;color:#4a5568;font-weight:600;font-size:12px;padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;white-space:nowrap}
+.data-table td{padding:10px 12px;border-bottom:1px solid #f0f4f8;font-size:13px;color:#4a5568}
+.data-table tr:hover td{background:#f7f9fc}
+.data-table .amount{text-align:right;font-variant-numeric:tabular-nums}
+.data-table .date-col{white-space:nowrap;font-size:12px}
+
+/* ── Badges ── */
+.badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge-pending{background:#edf2f7;color:#718096}
+.badge-progress{background:#ebf4ff;color:#0066cc}
+.badge-done{background:#f0fff4;color:#276749;text-decoration:line-through}
+.badge-skipped{background:#f7fafc;color:#a0aec0;text-decoration:line-through}
+.badge-blocked{background:#fffbeb;color:#b7791f}
+.badge-overdue{background:#fff5f5;color:#c53030;font-weight:700}
+
+/* ── Progress Bar ── */
+.progress-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.progress-card{background:#fff;border-radius:10px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.progress-card .prog-label{font-size:13px;font-weight:600;color:#2d3748;margin-bottom:8px;display:flex;justify-content:space-between}
+.progress-card .prog-label .prog-stat{font-size:12px;color:#718096;font-weight:400}
+.progress-bar{height:8px;background:#edf2f7;border-radius:4px;overflow:hidden}
+.progress-bar .fill{height:100%;border-radius:4px;transition:width .3s}
+.fill-blue{background:linear-gradient(90deg,#0066cc,#4299e1)}
+.fill-green{background:linear-gradient(90deg,#00875a,#38b2ac)}
+.fill-purple{background:linear-gradient(90deg,#7c3aed,#9f7aea)}
+.fill-orange{background:linear-gradient(90deg,#d69e2e,#ecc94b)}
+
+/* ── Alert/Warning Boxes ── */
+.alert-box{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:8px;margin-bottom:8px;font-size:13px}
+.alert-critical{background:#fff5f5;border:1px solid #feb2b2;color:#742a2a}
+.alert-warning{background:#fffbeb;border:1px solid #fbd38d;color:#744210}
+.alert-info{background:#ebf8ff;border:1px solid #bee3f8;color:#2a4365}
+.alert-icon{font-size:16px;flex-shrink:0}
+.alert-deadline{font-size:11px;color:#a0aec0;margin-top:2px}
+/* Alert detail cards */
+.alert-card{background:#fff;border-radius:10px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;cursor:pointer;transition:box-shadow .15s}
+.alert-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.alert-card-header{display:flex;align-items:center;gap:10px;padding:12px 16px;font-size:13px;border-left:4px solid #e2e8f0;user-select:none}
+.alert-card-header.sev-critical{border-left-color:#c53030}
+.alert-card-header.sev-warning{border-left-color:#d69e2e}
+.alert-card-header.sev-info{border-left-color:#3182ce}
+.alert-card-header .alert-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.alert-dot.dot-critical{background:#c53030}
+.alert-dot.dot-warning{background:#d69e2e}
+.alert-dot.dot-info{background:#3182ce}
+.alert-card-header .alert-type-label{font-weight:600;color:#2d3748;white-space:nowrap}
+.alert-card-header .alert-stock{background:#edf2f7;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:600;color:#4a5568;white-space:nowrap}
+.alert-card-header .alert-title{flex:1;color:#4a5568;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alert-card-header .alert-expand{font-size:11px;color:#a0aec0;transition:transform .2s;flex-shrink:0}
+.alert-card-header.expanded .alert-expand{transform:rotate(180deg)}
+.alert-card-body{display:none;padding:12px 16px 16px 30px;font-size:12px;color:#718096;border-top:1px solid #f0f4f8;white-space:pre-wrap;max-height:300px;overflow-y:auto}
+/* ── WBS Goal Accordion ── */
+.wbs-goal{background:#fff;border-radius:10px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden}
+.wbs-goal-header{display:flex;align-items:center;gap:10px;padding:14px 18px;cursor:pointer;transition:background .15s;user-select:none;border-bottom:1px solid transparent}
+.wbs-goal-header:hover{background:#f7f9fc}
+.wbs-goal-header.expanded{border-bottom-color:#e2e8f0}
+.wbs-goal-header .wbs-code{background:#0d1b2a;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;font-family:monospace;flex-shrink:0}
+.wbs-goal-header .wbs-name{font-weight:600;font-size:14px;color:#1a202c;flex:1}
+.wbs-goal-header .wbs-stat{font-size:11px;color:#718096;white-space:nowrap}
+.wbs-goal-header .mini-progress{width:80px;height:5px;background:#edf2f7;border-radius:3px;overflow:hidden;flex-shrink:0}
+.wbs-goal-header .mini-progress .mini-fill{height:100%;border-radius:3px;transition:width .3s}
+.wbs-goal-header .wbs-expand{font-size:11px;color:#a0aec0;transition:transform .2s;flex-shrink:0}
+.wbs-goal-header.expanded .wbs-expand{transform:rotate(180deg)}
+.wbs-goal-body{display:none;padding:0}
+.wbs-goal-desc{padding:10px 18px;font-size:12px;color:#718096;border-bottom:1px solid #f0f4f8}
+.wbs-sub-goals{padding:0 0 0 20px}
+.wbs-goal.nested{box-shadow:none;border:1px solid #edf2f7}
+.wbs-goal.nested .wbs-goal-header{padding:10px 14px;background:#fafbfc}
+.wbs-goal.nested .wbs-goal-header .wbs-name{font-size:13px}
+.wbs-task-row{display:flex;align-items:center;gap:8px;padding:8px 18px;font-size:12px;border-bottom:1px solid #f0f4f8;color:#4a5568;transition:background .3s}
+.wbs-task-row:last-child{border-bottom:none}
+
+/* ── Checklist ── */
+.checklist{background:#fff;border-radius:10px;padding:16px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.checklist-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f4f8;font-size:13px;color:#4a5568}
+.checklist-item:last-child{border-bottom:none}
+.checklist-item input[type=checkbox]{width:18px;height:18px;accent-color:#0066cc;flex-shrink:0}
+
+/* ── Event Timeline ── */
+.event-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f4f8;font-size:13px}
+.event-row:last-child{border-bottom:none}
+.event-date{background:#edf2f7;padding:2px 10px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;color:#4a5568}
+.event-date.urgent{background:#fff5f5;color:#c53030}
+
+/* ── Mode Highlight ── */
+.mode-pre .pre-market-section{display:block}
+.mode-pre .post-market-section{display:none}
+.mode-post .post-market-section{display:block}
+.mode-post .pre-market-section{display:none}
+.mode-standard .pre-market-section,.mode-standard .post-market-section{display:block}
+
+/* ── Two Column ── */
+.col2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+/* ── Footer ── */
+#footer{text-align:center;padding:20px;font-size:11px;color:#a0aec0;border-top:1px solid #e2e8f0;margin-top:32px}
+
+@media(max-width:800px){
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .col2{grid-template-columns:1fr}
+  #topbar{padding:0 16px}
+  #main{padding:16px}
+}
+</style>
+</head>
+<body class="mode-post-market">
+<header id="topbar">
+  <div class="title">每日战情室 · <span>2026-05-26</span> 周二</div>
+  <div class="meta">
+    活跃告警 <span class="alerts-badge" onclick="scrollToAlertSection()" style="cursor:pointer;transition:transform .15s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="点击查看告警详情">2</span>
+    <span class="mode">盘后</span>
+  </div>
+</header>
+
+<div id="main">
+
+<!-- ═══════════ 组合概览 ═══════════ -->
+<div class="metrics">
+  <div class="metric-card card-total">
+    <div class="mc-label">总资产</div>
+    <div class="mc-value">¥4.31M</div>
+    <div class="mc-sub">再平衡基准 ¥1.29M</div>
+  </div>
+  <div class="metric-card card-a">
+    <div class="mc-label">A 档 · 现金/债券</div>
+    <div class="mc-value">¥56.7万 <small style="font-size:14px;color:#718096">(13.2%)</small></div>
+    <div class="mc-sub">目标 ¥32.1万</div>
+  </div>
+  <div class="metric-card card-b">
+    <div class="mc-label">B 档 · 核心 ETF</div>
+    <div class="mc-value">¥13.3万 <small style="font-size:14px;color:#718096">(3.1%)</small></div>
+    <div class="mc-sub">目标 ¥64.3万</div>
+  </div>
+  <div class="metric-card card-c">
+    <div class="mc-label">C 档 · 主动选股</div>
+    <div class="mc-value">¥59.7万 <small style="font-size:14px;color:#718096">(13.9%)</small></div>
+    <div class="mc-sub">目标 ¥32.1万 | 上限 30%</div>
+  </div>
+  <div class="metric-card card-alert">
+    <div class="mc-label">活跃告警</div>
+    <div class="mc-value" style="color:#c53030;cursor:pointer" onclick="scrollToAlertSection()" title="点击查看告警详情">2</div>
+    <div class="mc-sub">严重 0 · 警告 2 · 信息 2</div>
+  </div>
+</div>
+
+<!-- ═══════════ 活跃告警 ═══════════ -->
+<div class="section" id="section-alerts">
+  <div class="section-title"><span class="icon">&#x1F514;</span> 活跃告警详情</div>
+  <div class="alert-card">
+  <div class="alert-card-header sev-info" id="alert-header-0" onclick="toggleAlert(0)">
+    <span class="alert-dot dot-info"></span>
+    <span class="alert-type-label">&#x1F535; 提示</span>
+    <span class="alert-stock">theme</span>
+    <span class="alert-title">🟡 告警 · 主题集中度超标</span>
+    <span class="alert-expand">&#x25BC;</span>
+  </div>
+  <div class="alert-card-body" id="alert-body-0"># 🟡 告警 · 主题集中度超标
+
+| 字段 | 内容 |
+|------|------|
+| 告警类型 | `theme_concentration` |
+| 严重级别 | WARNING |
+| 标的代码 | — |
+| 触发时间 | 2026-05-26 18:29:32 |
+
+## 告警详情
+
+（无详情）
+
+## 处理记录
+</div>
+</div>
+<div class="alert-card">
+  <div class="alert-card-header sev-warning" id="alert-header-1" onclick="toggleAlert(1)">
+    <span class="alert-dot dot-warning"></span>
+    <span class="alert-type-label">&#x1F7E1; 警告</span>
+    <span class="alert-stock">601012</span>
+    <span class="alert-title">🟡 告警 · 单股回撤 L2 审视</span>
+    <span class="alert-expand">&#x25BC;</span>
+  </div>
+  <div class="alert-card-body" id="alert-body-1"># 🟡 告警 · 单股回撤 L2 审视
+
+| 字段 | 内容 |
+|------|------|
+| 告警类型 | `single_stock_drawdown_l2` |
+| 严重级别 | WARNING |
+| 标的代码 | 601012 |
+| 触发时间 | 2026-05-26 18:29:31 |
+
+## 告警详情
+
+（无详情）
+
+## 处理记录
+</div>
+</div>
+<div class="alert-card">
+  <div class="alert-card-header sev-info" id="alert-header-2" onclick="toggleAlert(2)">
+    <span class="alert-dot dot-info"></span>
+    <span class="alert-type-label">&#x1F535; 提示</span>
+    <span class="alert-stock">600219</span>
+    <span class="alert-title">🔴 告警 · 单股仓位超标</span>
+    <span class="alert-expand">&#x25BC;</span>
+  </div>
+  <div class="alert-card-body" id="alert-body-2"># 🔴 告警 · 单股仓位超标
+
+| 字段 | 内容 |
+|------|------|
+| 告警类型 | `single_stock_position` |
+| 严重级别 | CRITICAL |
+| 标的代码 | 600219 |
+| 触发时间 | 2026-05-26 18:29:31 |
+
+## 告警详情
+
+（无详情）
+
+## 处理记录
+</div>
+</div>
+<div class="alert-card">
+  <div class="alert-card-header sev-warning" id="alert-header-3" onclick="toggleAlert(3)">
+    <span class="alert-dot dot-warning"></span>
+    <span class="alert-type-label">&#x1F7E1; 警告</span>
+    <span class="alert-stock">001280</span>
+    <span class="alert-title">🟡 告警 · 单股回撤 L2 审视</span>
+    <span class="alert-expand">&#x25BC;</span>
+  </div>
+  <div class="alert-card-body" id="alert-body-3"># 🟡 告警 · 单股回撤 L2 审视
+
+| 字段 | 内容 |
+|------|------|
+| 告警类型 | `single_stock_drawdown_l2` |
+| 严重级别 | WARNING |
+| 标的代码 | 001280 |
+| 触发时间 | 2026-05-26 18:29:31 |
+
+## 告警详情
+
+（无详情）
+
+## 处理记录
+</div>
+</div>
+</div>
+
+<!-- ═══════════ 执行看板 ═══════════ -->
+<div class="section">
+  <div class="section-title"><span class="icon">&#x1F4CB;</span> 执行看板</div>
+  <div class="wbs-goal">
+  <div class="wbs-goal-header" id="goal-header-G-B" onclick="toggleGoal('G-B')">
+    <span class="wbs-code">1</span>
+    <span style="font-size:16px">📊</span>
+    <span class="wbs-name">B仓ETF建仓</span>
+    <span class="wbs-stat">0/34</span>
+    <div class="mini-progress"><div class="mini-fill" style="width:0%;background:#cbd5e0"></div></div>
+    <span class="wbs-stat" style="min-width:36px;text-align:right">0%</span>
+    <span class="wbs-expand">&#x25BC;</span>
+  </div>
+  <div class="wbs-goal-body" id="goal-body-G-B">
+    <div class="wbs-goal-desc">建立核心ETF仓位，构建防御性底仓，目标占组合50%</div>
+    <div class="wbs-sub-goals"><div class="wbs-goal nested">
+  <div class="wbs-goal-header" id="goal-header-G-B-1" onclick="toggleGoal('G-B-1')">
+    <span class="wbs-code">1.1</span>
+    <span style="font-size:16px"></span>
+    <span class="wbs-name">纳指100出清</span>
+    <span class="wbs-stat">0/4</span>
+    <div class="mini-progress"><div class="mini-fill" style="width:0%;background:#cbd5e0"></div></div>
+    <span class="wbs-stat" style="min-width:36px;text-align:right">0%</span>
+    <span class="wbs-expand">&#x25BC;</span>
+  </div>
+  <div class="wbs-goal-body" id="goal-body-G-B-1">
+    
+    <div class="wbs-sub-goals"><div class="wbs-task-row" id="task-B-N01" style="">
+  <span class="badge badge-urgent">P0</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">纳指100 第1批卖出 25% (16,625股)<span style="color:#a0aec0;font-size:11px;margin-left:8px">无条件执行；当前 PE > 25倍</span></span>
+  <span style="font-weight:600;color:#1a202c">¥27,000</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-05-26</span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-N02" style="">
+  <span class="badge" style="background:#f0f4f8;color:#718096">P3</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">纳指100 第2批卖出 25%</span>
+  <span style="font-weight:600;color:#1a202c">¥27,000</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-06-08</span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-N01">&#x1F517; &#x23F3; B-N01</span>
+</div>
+<div class="wbs-task-row" id="task-B-N03" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">纳指100 第3批卖出 25%<span style="color:#a0aec0;font-size:11px;margin-left:8px">纳指 PE > 25倍才继续</span></span>
+  <span style="font-weight:600;color:#1a202c">¥27,000</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-N02">&#x1F517; &#x23F3; B-N02</span>
+</div>
+<div class="wbs-task-row" id="task-B-N04" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">纳指100 第4批卖出 25%<span style="color:#a0aec0;font-size:11px;margin-left:8px">纳指 PE > 25倍才继续</span></span>
+  <span style="font-weight:600;color:#1a202c">¥27,000</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-N03">&#x1F517; &#x23F3; B-N03</span>
+</div></div>
+  </div>
+</div>
+<div class="wbs-goal nested">
+  <div class="wbs-goal-header" id="goal-header-G-B-2" onclick="toggleGoal('G-B-2')">
+    <span class="wbs-code">1.2</span>
+    <span style="font-size:16px"></span>
+    <span class="wbs-name">Phase 1: 立即建仓</span>
+    <span class="wbs-stat">0/2</span>
+    <div class="mini-progress"><div class="mini-fill" style="width:0%;background:#cbd5e0"></div></div>
+    <span class="wbs-stat" style="min-width:36px;text-align:right">0%</span>
+    <span class="wbs-expand">&#x25BC;</span>
+  </div>
+  <div class="wbs-goal-body" id="goal-body-G-B-2">
+    
+    <div class="wbs-sub-goals"><div class="wbs-task-row" id="task-B-P1-01" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-active">&#x23F3; 进行中</span>
+  <span style="flex:1;margin:0 8px">港股科技 ETF 建仓 ¥80,000</span>
+  <span style="font-weight:600;color:#1a202c">¥80,000</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-P1-02" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">中证红利 ETF 建仓 ¥48,000<span style="color:#a0aec0;font-size:11px;margin-left:8px">一次性建仓，防御底仓，股息率 ~5.2%</span></span>
+  <span style="font-weight:600;color:#1a202c">¥48,000</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div></div>
+  </div>
+</div>
+<div class="wbs-goal nested">
+  <div class="wbs-goal-header" id="goal-header-G-B-3" onclick="toggleGoal('G-B-3')">
+    <span class="wbs-code">1.3</span>
+    <span style="font-size:16px"></span>
+    <span class="wbs-name">Phase 2: 定投积累 (第3-12周)</span>
+    <span class="wbs-stat">0/3</span>
+    <div class="mini-progress"><div class="mini-fill" style="width:0%;background:#cbd5e0"></div></div>
+    <span class="wbs-stat" style="min-width:36px;text-align:right">0%</span>
+    <span class="wbs-expand">&#x25BC;</span>
+  </div>
+  <div class="wbs-goal-body" id="goal-body-G-B-3">
+    
+    <div class="wbs-sub-goals"><div class="wbs-task-row" id="task-B-P2-01" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-active">&#x23F3; 进行中</span>
+  <span style="flex:1;margin:0 8px">中证A500 ETF 12周定投 ¥160,725</span>
+  <span style="font-weight:600;color:#1a202c">¥160,725</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-P2-02" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">港股科技 ETF 补足到25%目标<span style="color:#a0aec0;font-size:11px;margin-left:8px">Phase 1 完成后剩余补足部分，12周定投</span></span>
+  <span style="font-weight:600;color:#1a202c">¥80,725</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-P1-01">&#x1F517; &#x23F3; B-P1-01</span>
+</div>
+<div class="wbs-task-row" id="task-B-P2-03" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">中证红利 ETF 补足到10%目标<span style="color:#a0aec0;font-size:11px;margin-left:8px">Phase 1 完成后剩余补足部分</span></span>
+  <span style="font-weight:600;color:#1a202c">¥16,290</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-P1-02">&#x1F517; &#x23F3; B-P1-02</span>
+</div></div>
+  </div>
+</div>
+<div class="wbs-goal nested">
+  <div class="wbs-goal-header" id="goal-header-G-B-4" onclick="toggleGoal('G-B-4')">
+    <span class="wbs-code">1.4</span>
+    <span style="font-size:16px"></span>
+    <span class="wbs-name">Phase 3: 择机建仓 (第13-20周)</span>
+    <span class="wbs-stat">0/1</span>
+    <div class="mini-progress"><div class="mini-fill" style="width:0%;background:#cbd5e0"></div></div>
+    <span class="wbs-stat" style="min-width:36px;text-align:right">0%</span>
+    <span class="wbs-expand">&#x25BC;</span>
+  </div>
+  <div class="wbs-goal-body" id="goal-body-G-B-4">
+    
+    <div class="wbs-sub-goals"><div class="wbs-task-row" id="task-B-P3-01" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-blocked">&#x1F512; 阻塞</span>
+  <span style="flex:1;margin:0 8px">创业板 ETF 建仓 ¥96,435<span style="color:#a0aec0;font-size:11px;margin-left:8px">PE 回落至 42倍以下 或 指数跌 >10%</span></span>
+  <span style="font-weight:600;color:#1a202c">¥96,435</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-P2-01, &#x23F3; B-P2-02">&#x1F517; &#x23F3; B-P2-01 &#x23F3; B-P2-02</span>
+</div></div>
+  </div>
+</div>
+<div class="wbs-goal nested">
+  <div class="wbs-goal-header" id="goal-header-G-B-5" onclick="toggleGoal('G-B-5')">
+    <span class="wbs-code">1.5</span>
+    <span style="font-size:16px"></span>
+    <span class="wbs-name">现金储备触发条件 (监控中)</span>
+    <span class="wbs-stat">0/5</span>
+    <div class="mini-progress"><div class="mini-fill" style="width:0%;background:#cbd5e0"></div></div>
+    <span class="wbs-stat" style="min-width:36px;text-align:right">0%</span>
+    <span class="wbs-expand">&#x25BC;</span>
+  </div>
+  <div class="wbs-goal-body" id="goal-body-G-B-5">
+    
+    <div class="wbs-sub-goals"><div class="wbs-task-row" id="task-B-CR-01" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-blocked">&#x1F512; 阻塞</span>
+  <span style="flex:1;margin:0 8px">科创50 ETF 抄底 ¥30,000<span style="color:#a0aec0;font-size:11px;margin-left:8px">科创50 PE 从 167倍回调至 120倍以下 (~-28%)</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-CR-02" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-blocked">&#x1F512; 阻塞</span>
+  <span style="flex:1;margin:0 8px">A500 加速建仓 ¥50,000<span style="color:#a0aec0;font-size:11px;margin-left:8px">A500 PE 百分位从 97%回调至 60%以下 (~-20%)</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-CR-03" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-blocked">&#x1F512; 阻塞</span>
+  <span style="flex:1;margin:0 8px">港股科技 暴跌加仓 ¥15,000<span style="color:#a0aec0;font-size:11px;margin-left:8px">港股科技单日跌 >5%</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-CR-04" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-blocked">&#x1F512; 阻塞</span>
+  <span style="flex:1;margin:0 8px">系统性风险抄底 ¥65,724<span style="color:#a0aec0;font-size:11px;margin-left:8px">全球系统性风险事件（地缘冲突/金融危机/黑天鹅）</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-CR-05" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-blocked">&#x1F512; 阻塞</span>
+  <span style="flex:1;margin:0 8px">标普500 ETF 建仓 ¥32,145<span style="color:#a0aec0;font-size:11px;margin-left:8px">标普500 PE 回落至 22倍以下 且 ETF 溢价 <2%</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div></div>
+  </div>
+</div>
+<div class="wbs-goal nested">
+  <div class="wbs-goal-header" id="goal-header-G-B-6" onclick="toggleGoal('G-B-6')">
+    <span class="wbs-code">1.6</span>
+    <span style="font-size:16px"></span>
+    <span class="wbs-name">执行偏差修正</span>
+    <span class="wbs-stat">0/2</span>
+    <div class="mini-progress"><div class="mini-fill" style="width:0%;background:#cbd5e0"></div></div>
+    <span class="wbs-stat" style="min-width:36px;text-align:right">0%</span>
+    <span class="wbs-expand">&#x25BC;</span>
+  </div>
+  <div class="wbs-goal-body" id="goal-body-G-B-6">
+    
+    <div class="wbs-sub-goals"><div class="wbs-task-row" id="task-B-FIX-01" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">A500 超买部分择机卖出，回归定投节奏<span style="color:#a0aec0;font-size:11px;margin-left:8px">已超买约 2.2 周额度，后续应暂停买入直至回归定投线</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-P2-01">&#x1F517; &#x23F3; B-P2-01</span>
+</div>
+<div class="wbs-task-row" id="task-B-FIX-02" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">确认港股科技 ETF 代码：计划 513180 vs 实际 513010<span style="color:#a0aec0;font-size:11px;margin-left:8px">需确认是否调整 B 档计划中的 ETF 代码</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div></div>
+  </div>
+</div>
+<div class="wbs-task-row" id="task-B-N01" style="">
+  <span class="badge badge-urgent">P0</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">纳指100 第1批卖出 25% (16,625股)<span style="color:#a0aec0;font-size:11px;margin-left:8px">无条件执行；当前 PE > 25倍</span></span>
+  <span style="font-weight:600;color:#1a202c">¥27,000</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-05-26</span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-N02" style="">
+  <span class="badge" style="background:#f0f4f8;color:#718096">P3</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">纳指100 第2批卖出 25%</span>
+  <span style="font-weight:600;color:#1a202c">¥27,000</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-06-08</span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-N01">&#x1F517; &#x23F3; B-N01</span>
+</div>
+<div class="wbs-task-row" id="task-B-N03" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">纳指100 第3批卖出 25%<span style="color:#a0aec0;font-size:11px;margin-left:8px">纳指 PE > 25倍才继续</span></span>
+  <span style="font-weight:600;color:#1a202c">¥27,000</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-N02">&#x1F517; &#x23F3; B-N02</span>
+</div>
+<div class="wbs-task-row" id="task-B-N04" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">纳指100 第4批卖出 25%<span style="color:#a0aec0;font-size:11px;margin-left:8px">纳指 PE > 25倍才继续</span></span>
+  <span style="font-weight:600;color:#1a202c">¥27,000</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-N03">&#x1F517; &#x23F3; B-N03</span>
+</div>
+<div class="wbs-task-row" id="task-B-P1-01" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-active">&#x23F3; 进行中</span>
+  <span style="flex:1;margin:0 8px">港股科技 ETF 建仓 ¥80,000</span>
+  <span style="font-weight:600;color:#1a202c">¥80,000</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-P1-02" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">中证红利 ETF 建仓 ¥48,000<span style="color:#a0aec0;font-size:11px;margin-left:8px">一次性建仓，防御底仓，股息率 ~5.2%</span></span>
+  <span style="font-weight:600;color:#1a202c">¥48,000</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-P2-01" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-active">&#x23F3; 进行中</span>
+  <span style="flex:1;margin:0 8px">中证A500 ETF 12周定投 ¥160,725</span>
+  <span style="font-weight:600;color:#1a202c">¥160,725</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-P2-02" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">港股科技 ETF 补足到25%目标<span style="color:#a0aec0;font-size:11px;margin-left:8px">Phase 1 完成后剩余补足部分，12周定投</span></span>
+  <span style="font-weight:600;color:#1a202c">¥80,725</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-P1-01">&#x1F517; &#x23F3; B-P1-01</span>
+</div>
+<div class="wbs-task-row" id="task-B-P2-03" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">中证红利 ETF 补足到10%目标<span style="color:#a0aec0;font-size:11px;margin-left:8px">Phase 1 完成后剩余补足部分</span></span>
+  <span style="font-weight:600;color:#1a202c">¥16,290</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-P1-02">&#x1F517; &#x23F3; B-P1-02</span>
+</div>
+<div class="wbs-task-row" id="task-B-P3-01" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-blocked">&#x1F512; 阻塞</span>
+  <span style="flex:1;margin:0 8px">创业板 ETF 建仓 ¥96,435<span style="color:#a0aec0;font-size:11px;margin-left:8px">PE 回落至 42倍以下 或 指数跌 >10%</span></span>
+  <span style="font-weight:600;color:#1a202c">¥96,435</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-P2-01, &#x23F3; B-P2-02">&#x1F517; &#x23F3; B-P2-01 &#x23F3; B-P2-02</span>
+</div>
+<div class="wbs-task-row" id="task-B-CR-01" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-blocked">&#x1F512; 阻塞</span>
+  <span style="flex:1;margin:0 8px">科创50 ETF 抄底 ¥30,000<span style="color:#a0aec0;font-size:11px;margin-left:8px">科创50 PE 从 167倍回调至 120倍以下 (~-28%)</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-CR-02" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-blocked">&#x1F512; 阻塞</span>
+  <span style="flex:1;margin:0 8px">A500 加速建仓 ¥50,000<span style="color:#a0aec0;font-size:11px;margin-left:8px">A500 PE 百分位从 97%回调至 60%以下 (~-20%)</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-CR-03" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-blocked">&#x1F512; 阻塞</span>
+  <span style="flex:1;margin:0 8px">港股科技 暴跌加仓 ¥15,000<span style="color:#a0aec0;font-size:11px;margin-left:8px">港股科技单日跌 >5%</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-CR-04" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-blocked">&#x1F512; 阻塞</span>
+  <span style="flex:1;margin:0 8px">系统性风险抄底 ¥65,724<span style="color:#a0aec0;font-size:11px;margin-left:8px">全球系统性风险事件（地缘冲突/金融危机/黑天鹅）</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-CR-05" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-blocked">&#x1F512; 阻塞</span>
+  <span style="flex:1;margin:0 8px">标普500 ETF 建仓 ¥32,145<span style="color:#a0aec0;font-size:11px;margin-left:8px">标普500 PE 回落至 22倍以下 且 ETF 溢价 <2%</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div>
+<div class="wbs-task-row" id="task-B-FIX-01" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">A500 超买部分择机卖出，回归定投节奏<span style="color:#a0aec0;font-size:11px;margin-left:8px">已超买约 2.2 周额度，后续应暂停买入直至回归定投线</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+   <span style="font-size:10px;color:#a0aec0" title="依赖: &#x23F3; B-P2-01">&#x1F517; &#x23F3; B-P2-01</span>
+</div>
+<div class="wbs-task-row" id="task-B-FIX-02" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">确认港股科技 ETF 代码：计划 513180 vs 实际 513010<span style="color:#a0aec0;font-size:11px;margin-left:8px">需确认是否调整 B 档计划中的 ETF 代码</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right"></span>
+  
+</div></div>
+  </div>
+</div>
+<div class="wbs-goal">
+  <div class="wbs-goal-header" id="goal-header-G-C" onclick="toggleGoal('G-C')">
+    <span class="wbs-code">2</span>
+    <span style="font-size:16px">📉</span>
+    <span class="wbs-name">C仓位重组</span>
+    <span class="wbs-stat">2/6</span>
+    <div class="mini-progress"><div class="mini-fill" style="width:33%;background:#0066cc"></div></div>
+    <span class="wbs-stat" style="min-width:36px;text-align:right">33%</span>
+    <span class="wbs-expand">&#x25BC;</span>
+  </div>
+  <div class="wbs-goal-body" id="goal-body-G-C">
+    <div class="wbs-goal-desc">降低C仓位集中度和主题风险，清仓低分thesis标的</div>
+    <div class="wbs-sub-goals"><div class="wbs-task-row" id="task-C-001" style="">
+  <span class="badge badge-urgent">P0</span> <span class="badge badge-done">&#x2705; 完成</span>
+  <span style="flex:1;margin:0 8px">南山铝业第一档减仓 4,100股</span>
+  <span style="font-weight:600;color:#1a202c">¥21,648</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-05-26</span>
+  
+</div>
+<div class="wbs-task-row" id="task-C-002" style="">
+  <span class="badge badge-warn">P1</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">理想汽车清仓 2,400股<span style="color:#a0aec0;font-size:11px;margin-left:8px">等待 Q1 财报后执行；thesis 评分 2.8/5</span></span>
+  <span style="font-weight:600;color:#1a202c">¥148,320</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-05-28</span>
+  
+</div>
+<div class="wbs-task-row" id="task-C-003" style="">
+  <span class="badge badge-warn">P1</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">隆基绿能清仓 3,600股<span style="color:#a0aec0;font-size:11px;margin-left:8px">thesis 评分 2.8/5；产能过剩+毛利率压力</span></span>
+  <span style="font-weight:600;color:#1a202c">¥54,144</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-05-29</span>
+  
+</div>
+<div class="wbs-task-row" id="task-C-004" style="">
+  <span class="badge" style="background:#e8f0fe;color:#0066cc">P2</span> <span class="badge badge-done">&#x2705; 完成</span>
+  <span style="flex:1;margin:0 8px">中国铀业清仓 200股<span style="color:#a0aec0;font-size:11px;margin-left:8px">thesis 评分 2.5/5；仓位太碎 2.44%</span></span>
+  <span style="font-weight:600;color:#1a202c">¥15,190</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-05-30</span>
+  
+</div>
+<div class="wbs-task-row" id="task-C-005" style="">
+  <span class="badge" style="background:#e8f0fe;color:#0066cc">P2</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">比亚迪减仓 400股（12.06% → 5%）<span style="color:#a0aec0;font-size:11px;margin-left:8px">thesis 评分 3.2/5；新能源龙头保留 5% 观察仓</span></span>
+  <span style="font-weight:600;color:#1a202c">¥37,500</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-06-01</span>
+  
+</div>
+<div class="wbs-task-row" id="task-C-006" style="">
+  <span class="badge" style="background:#f0f4f8;color:#718096">P3</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">南山铝业第二档减仓 24,600股（价格触发）<span style="color:#a0aec0;font-size:11px;margin-left:8px">分4批价格触发：≥5.81/≥6.34/≥6.86/≥7.39；当前价 ¥5.50 未触发</span></span>
+  <span style="font-weight:600;color:#1a202c">¥162,300</span>
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-06-23</span>
+  
+</div></div>
+  </div>
+</div>
+<div class="wbs-goal">
+  <div class="wbs-goal-header" id="goal-header-G-R" onclick="toggleGoal('G-R')">
+    <span class="wbs-code">3</span>
+    <span style="font-size:16px">⚠️</span>
+    <span class="wbs-name">合规整改</span>
+    <span class="wbs-stat">0/3</span>
+    <div class="mini-progress"><div class="mini-fill" style="width:0%;background:#cbd5e0"></div></div>
+    <span class="wbs-stat" style="min-width:36px;text-align:right">0%</span>
+    <span class="wbs-expand">&#x25BC;</span>
+  </div>
+  <div class="wbs-goal-body" id="goal-body-G-R">
+    <div class="wbs-goal-desc">解决 active_breaches 中的违规，恢复组合合规</div>
+    <div class="wbs-sub-goals"><div class="wbs-task-row" id="task-R-001" style="">
+  <span class="badge" style="background:#f0f4f8;color:#718096">P3</span> <span class="badge badge-active">&#x23F3; 进行中</span>
+  <span style="flex:1;margin:0 8px">南山铝业强制降权 42.8% → ≤25%</span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-06-22</span>
+  
+</div>
+<div class="wbs-task-row" id="task-R-002" style="">
+  <span class="badge" style="background:#f0f4f8;color:#a0aec0">P4</span> <span class="badge badge-active">&#x23F3; 进行中</span>
+  <span style="flex:1;margin:0 8px">新能源/电力链主题集中度整改 84.15% → ≤35%<span style="color:#a0aec0;font-size:11px;margin-left:8px">重组完成后预期降至 ~38.5%，接近目标</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-08-24</span>
+  
+</div>
+<div class="wbs-task-row" id="task-R-003" style="">
+  <span class="badge" style="background:#f0f4f8;color:#718096">P3</span> <span class="badge badge-active">&#x23F3; 进行中</span>
+  <span style="flex:1;margin:0 8px">C档总仓位降仓 48.38% → ≤30%<span style="color:#a0aec0;font-size:11px;margin-left:8px">基准资产 ¥1,285,798（排除美团RSU），C 档 ¥622,028</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-06-22</span>
+  
+</div></div>
+  </div>
+</div>
+<div class="wbs-goal">
+  <div class="wbs-goal-header" id="goal-header-G-T" onclick="toggleGoal('G-T')">
+    <span class="wbs-code">4</span>
+    <span style="font-size:16px">📝</span>
+    <span class="wbs-name">Thesis维护</span>
+    <span class="wbs-stat">0/3</span>
+    <div class="mini-progress"><div class="mini-fill" style="width:0%;background:#cbd5e0"></div></div>
+    <span class="wbs-stat" style="min-width:36px;text-align:right">0%</span>
+    <span class="wbs-expand">&#x25BC;</span>
+  </div>
+  <div class="wbs-goal-body" id="goal-body-G-T">
+    <div class="wbs-goal-desc">按时更新thesis文档，确保持仓逻辑清晰</div>
+    <div class="wbs-sub-goals"><div class="wbs-task-row" id="task-T-001" style="">
+  <span class="badge" style="background:#e8f0fe;color:#0066cc">P2</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">更新中国铀业 thesis — L2 审视线触发</span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-06-01</span>
+  
+</div>
+<div class="wbs-task-row" id="task-T-002" style="">
+  <span class="badge" style="background:#e8f0fe;color:#0066cc">P2</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">更新隆基绿能 thesis — L2 审视线触发<span style="color:#a0aec0;font-size:11px;margin-left:8px">5/22 股东大会：BC 28.13% 世界纪录 + 集采第一 + Q3 组件盈利承诺</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-06-01</span>
+  
+</div>
+<div class="wbs-task-row" id="task-T-003" style="">
+  <span class="badge" style="background:#e8f0fe;color:#0066cc">P2</span> <span class="badge badge-pending">&#x23F3; 待办</span>
+  <span style="flex:1;margin:0 8px">更新南山铝业 thesis — L2 审视线触发<span style="color:#a0aec0;font-size:11px;margin-left:8px">减仓是组合纪律驱动，非 thesis 证伪。五支柱 3.27/5</span></span>
+  
+  <span style="font-size:11px;color:#a0aec0;min-width:65px;text-align:right">2026-06-01</span>
+  
+</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════ 执行进度 ═══════════ -->
+<div class="section">
+  <div class="section-title"><span class="icon">&#x1F4CA;</span> 执行进度</div>
+  <div class="progress-grid"><div class="progress-card">
+      <div class="prog-label">
+        <span>C仓位重组</span>
+        <span class="prog-stat">2/6 完成 (33%)</span>
+      </div>
+      <div class="progress-bar">
+        <div class="fill fill-blue" style="width:33.33333333333333%"></div>
+      </div>
+    </div><div class="progress-card">
+      <div class="prog-label">
+        <span>B仓ETF建仓</span>
+        <span class="prog-stat">0/17 完成 (0%) + 2项进行中</span>
+      </div>
+      <div class="progress-bar">
+        <div class="fill fill-green" style="width:5.88235294117647%"></div>
+      </div>
+    </div><div class="progress-card">
+      <div class="prog-label">
+        <span>合规整改</span>
+        <span class="prog-stat">0/3 完成 (0%) + 3项进行中</span>
+      </div>
+      <div class="progress-bar">
+        <div class="fill fill-purple" style="width:50.0%"></div>
+      </div>
+    </div><div class="progress-card">
+      <div class="prog-label">
+        <span>Thesis维护</span>
+        <span class="prog-stat">0/3 完成 (0%)</span>
+      </div>
+      <div class="progress-bar">
+        <div class="fill fill-orange" style="width:2%"></div>
+      </div>
+    </div></div>
+</div>
+
+<!-- ═══════════ 合规预警 ═══════════ -->
+<div class="section">
+  <div class="section-title"><span class="icon">&#x26A0;&#xFE0F;</span> 合规预警</div>
+  <div class="alert-box alert-warning">
+      <span class="alert-icon">&#x1F7E1;</span>
+      <div>
+        <strong>单股仓位超限</strong> — 南山铝业：当前 0.4516，阈值 0.25，状态：整改中
+        <div class="alert-deadline">宽限期至 2026-06-22，剩余 27 天</div>
+        <div style="font-size:12px;margin-top:3px;color:#718096">当前持仓 53,200 股 × ¥5.28 = ¥280,896，占 C 仓位 45.16%。
+需在 30 天宽限期内降至 25% 以下。
+回笼资金按 70%/30% 进 B 档/A 档。
+</div>
+        <div style="font-size:11px;margin-top:4px"><a href="javascript:scrollAndHighlight('task-R-001')" style="color:#0066cc;text-decoration:none;font-weight:500">&#x1F517; 相关任务: R-001 &#x2192;</a></div>
+      </div>
+    </div>
+<div class="alert-box alert-info">
+      <span class="alert-icon">&#x1F7E2;</span>
+      <div>
+        <strong>主题集中度超限</strong> — ：当前 0.8415，阈值 0.35，状态：观察中
+        <div class="alert-deadline">宽限期至 2026-08-24，剩余 90 天</div>
+        <div style="font-size:12px;margin-top:3px;color:#718096">5/7 只 C 仓位个股与新能源/电力需求/产业升级存在主题关联。
+单一主题高度集中，行情反转时可能同步回撤。
+优先通过降低南山铝业仓位缓解，而非分散到不熟悉的领域。
+</div>
+        <div style="font-size:11px;margin-top:4px"><a href="javascript:scrollAndHighlight('task-R-002')" style="color:#0066cc;text-decoration:none;font-weight:500">&#x1F517; 相关任务: R-002 &#x2192;</a></div>
+      </div>
+    </div>
+<div class="alert-box alert-warning">
+      <span class="alert-icon">&#x1F7E1;</span>
+      <div>
+        <strong>C档总仓位超配</strong> — ：当前 0.4838，阈值 0.3，状态：整改中
+        <div class="alert-deadline">宽限期至 2026-06-22，剩余 27 天</div>
+        <div style="font-size:12px;margin-top:3px;color:#718096">基准资产 ¥1,285,798（排除美团RSU），C 档 ¥622,028 = 48.38%，超 hard_max 30%。
+C 仓位重组完成后预期降至 ¥333,333 = 25.92%，回归合规范围。
+</div>
+        <div style="font-size:11px;margin-top:4px"><a href="javascript:scrollAndHighlight('task-R-003')" style="color:#0066cc;text-decoration:none;font-weight:500">&#x1F517; 相关任务: R-003 &#x2192;</a></div>
+      </div>
+    </div>
+</div>
+
+<!-- ═══════════ 盘前/盘后检查 ═══════════ -->
+<div class="col2">
+  <div class="section pre-market-section">
+    <div class="section-title"><span class="icon">&#x1F305;</span> 盘前检查清单</div>
+    <div class="checklist"><div class="checklist-item"><input type="checkbox">查看隔夜美股/港股指数走势</div><div class="checklist-item"><input type="checkbox">检查今日持仓公告/财报日历</div><div class="checklist-item"><input type="checkbox">确认 macro.md 宏观事件日历</div><div class="checklist-item"><input type="checkbox">确认今日待执行事项清单</div></div>
+  </div>
+  <div class="section post-market-section">
+    <div class="section-title"><span class="icon">&#x1F307;</span> 盘后检查清单</div>
+    <div class="checklist"><div class="checklist-item"><input type="checkbox">运行 daily_snapshot.py</div><div class="checklist-item"><input type="checkbox">更新 execution_tracker.yaml 中当日完成事项</div><div class="checklist-item"><input type="checkbox">检查是否有新触发告警</div><div class="checklist-item"><input type="checkbox">记录交易日志 trades/log_*.md（如有操作）</div></div>
+  </div>
+</div>
+
+<!-- ═══════════ 即将到来的事件 ═══════════ -->
+<div class="section">
+  <div class="section-title"><span class="icon">&#x1F4C5;</span> 未来 30 天关键事件</div>
+  <div class="event-row">
+      <span class="event-date urgent">2026-05-28 (2天后)</span>
+      <span>&#x1F7E1; 理想汽车 Q1 财报 + 清仓执行</span>
+      <span style="font-size:12px;color:#a0aec0">C 仓位最大单笔回笼 ¥148,320</span>
+    </div>
+<div class="event-row">
+      <span class="event-date urgent">2026-05-29 (3天后)</span>
+      <span>&#x1F7E1; 隆基绿能清仓执行</span>
+      <span style="font-size:12px;color:#a0aec0">回笼 ¥54,144</span>
+    </div>
+<div class="event-row">
+      <span class="event-date">2026-05-30 (4天后)</span>
+      <span>中国铀业清仓执行</span>
+      <span style="font-size:12px;color:#a0aec0">✅ 已于 5/26 提前完成，实际回笼 ¥14,622</span>
+    </div>
+<div class="event-row">
+      <span class="event-date">2026-06-01 (6天后)</span>
+      <span>比亚迪减仓执行 + 3只 thesis L2 更新截止</span>
+      <span style="font-size:12px;color:#a0aec0">回笼 ¥37,500</span>
+    </div>
+<div class="event-row">
+      <span class="event-date">2026-06-22 (27天后)</span>
+      <span>⚠ 合规整改截止日：单股超限 + C档超配</span>
+      <span style="font-size:12px;color:#a0aec0">南山铝业必须降至 ≤25%，C 档必须降至 ≤30%</span>
+    </div>
+</div>
+
+</div>
+
+<div id="footer">
+  每日战情室 · 由 dashboard.py 自动生成 · 2026-05-26 18:58 · 数据来源: execution_tracker.yaml + rules.yaml + portfolio_snapshot.csv
+</div>
+
+<script>
+function toggleAlert(id){var b=document.getElementById('alert-body-'+id);var h=document.getElementById('alert-header-'+id);if(b.style.display==='none'||!b.style.display){b.style.display='block';h.classList.add('expanded')}else{b.style.display='none';h.classList.remove('expanded')}}
+function toggleGoal(id){var b=document.getElementById('goal-body-'+id);var h=document.getElementById('goal-header-'+id);if(b.style.display==='none'||!b.style.display){b.style.display='block';h.classList.add('expanded')}else{b.style.display='none';h.classList.remove('expanded')}}
+function scrollToAlertSection(){var e=document.getElementById('section-alerts');if(e){e.scrollIntoView({behavior:'smooth'});var cards=e.querySelectorAll('.alert-card-body');cards.forEach(function(c){c.style.display='block'});var headers=e.querySelectorAll('.alert-card-header');headers.forEach(function(h){h.classList.add('expanded')})}}
+function scrollAndHighlight(id){var e=document.getElementById(id);if(e){e.scrollIntoView({behavior:'smooth',block:'center'});e.style.transition='background .3s';e.style.background='#fffbeb';setTimeout(function(){e.style.background=''},2000)}}
+</script>
+</body>
+</html>

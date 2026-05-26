@@ -1,0 +1,147 @@
+# ============================================================
+# config/b_tranche_execution_plan.yaml
+# B仓 ETF 建仓执行计划 v2
+# ============================================================
+# 版本：v2.0
+# 创建日期：2026-05-25
+# 基于：估值 + 十五五政策 + AI产业趋势 三维评估
+# ============================================================
+
+# ── 建仓优先级序列 ──────────────────────────────────────────
+# 恒生科技 > 红利ETF > A500定投 > 创业板(等条件) > 标普500(等条件)
+priority_sequence:
+  - 513010  # 港股科技 — 唯一"AI受益+低估+政策对"三重交集
+  - 515180  # 中证红利 — 低利率时代防御基石
+  - 563360  # 中证A500 — 新质生产力暴露度最高, 必须定投
+  - 159915  # 创业板 — 等PE<42倍或跌>10%
+  - 513500  # 标普500 — 等PE<22倍且溢价<2%
+
+# ── 阶段零：纳指100 出清计划（第1-8周）─────────────────────
+nasdaq_exit:
+  etf_code: 159941
+  etf_name: 纳指100 ETF
+  current_shares: 66500
+  current_value: ~109392
+  reason: "估值偏高+对中国政策无暴露, 释放资金转入恒生科技/A500/红利"
+  tranches:
+    - batch: 1
+      week: 1
+      sell_pct: 0.25
+      approx_amount: 27000
+      condition: "无条件"
+    - batch: 2
+      week: 3
+      sell_pct: 0.25
+      approx_amount: 27000
+      condition: "无条件"
+    - batch: 3
+      week: 5
+      sell_pct: 0.25
+      approx_amount: 27000
+      condition: "纳指PE > 25倍才继续"
+    - batch: 4
+      week: 7
+      sell_pct: 0.25
+      approx_amount: 27000
+      condition: "纳指PE > 25倍才继续"
+  pause_condition: "纳指PE降至25倍以下 → 暂停出清, 保留剩余持仓享受增长"
+  proceeds_priority:
+    - "补足港股科技到25%目标"
+    - "补足红利ETF到10%目标"
+    - "剩余进入A500定投池, 缩短定投周期"
+
+# ── 阶段一：立即建仓（第1-2周, 约12.8万）───────────────────
+phase1_immediate:
+  start_week: 1
+  end_week: 2
+  entries:
+    - etf_code: 513010
+      etf_name: 港股科技 ETF
+      amount: 80000
+      strategy: "分2天建仓, 每天40,000"
+      reason: "核心仓位, PE 21倍极度低估, 十五五AI+政策直接受益"
+    - etf_code: 515180
+      etf_name: 中证红利 ETF
+      amount: 48000
+      strategy: "一次性建仓"
+      reason: "防御底仓, 股息率~5.2%, 不受短期波动影响"
+
+# ── 阶段二：定投积累（第3-12周, 约27.3万）───────────────────
+phase2_dca:
+  start_week: 3
+  end_week: 12
+  duration_weeks: 12
+  entries:
+    - etf_code: 563360
+      etf_name: 中证A500 ETF
+      weekly_amount: 13394
+      total_amount: 160725
+      reason: "十五五新质生产力暴露度最高, 但PE百分位78-97%偏贵, 12周定投摊平"
+    - etf_code: 513010
+      etf_name: 港股科技 ETF
+      weekly_amount: 6727
+      total_amount: 80725
+      reason: "补足到25%目标 (总目标160,725, 阶段一已建80,000)"
+    - etf_code: 515180
+      etf_name: 中证红利 ETF
+      weekly_amount: 1358
+      total_amount: 16290
+      reason: "补足到10%目标 (总目标64,290, 阶段一已建48,000)"
+
+# ── 阶段三：择机建仓（第13-20周, 约9.6万）───────────────────
+phase3_conditional:
+  start_week: 13
+  end_week: 20
+  entries:
+    - etf_code: 159915
+      etf_name: 创业板 ETF
+      total_amount: 96435
+      trigger_condition: "PE回落至42倍以下 或 指数从当前点位跌>10%"
+      execution: "分3次各32,145, 每次间隔至少1周"
+      fallback: "第20周末条件仍未触发 → 资金转入现金储备"
+
+# ── 现金储备动用条件（B仓25% = 160,724）─────────────────────
+cash_reserve_deployment:
+  total_reserve: 160724
+  triggers:
+    - scenario: "科创50 PE从167倍回调至120倍以下(约-28%)"
+      amount: 30000
+      target: "科创50 ETF (588000)"
+      reason: "十五五科技自立最纯标的, 但PE 167倍泡沫化, 只等暴跌抄底"
+
+    - scenario: "A500 PE百分位从97%回调至60%以下(约-20%)"
+      amount: 50000
+      target: "中证A500 ETF (563360)"
+      reason: "估值回到合理区间后加速建仓, 不需再定投"
+
+    - scenario: "港股科技单日跌>5%"
+      amount: 15000
+      target: "港股科技 ETF (513010)"
+      reason: "利用恐慌情绪加仓核心仓位"
+
+    - scenario: "全球系统性风险事件 (地缘冲突/金融危机/黑天鹅)"
+      amount: 65724
+      target: "港股科技50% + A500 50%"
+      reason: "系统性风险是优质资产打折的最佳时机"
+
+    - scenario: "标普500 PE回落至22倍以下 且 ETF溢价<2%"
+      amount: 32145  # 可选, 从剩余现金中分配
+      target: "标普500 ETF (513500)"
+      reason: "海外分散敞口, 仅在美股的估值+汇率双重安全时入场"
+
+# ── 与 v1（纯估值版）配置对比 ────────────────────────────────
+changelog:
+  v1_to_v2:
+    added:
+      - "中证A500 25% — 十五五新质生产力最大受益者"
+      - "中证红利 10% — 低利率时代防御基石"
+      - "创业板 15% — AI硬件+新能源+医药, PE分位50%合理"
+      - "现金储备 25% — 含具体触发条件"
+    removed:
+      - "中证500 10% — 估值不低+政策契合度一般"
+      - "沪深300 20% — 合并到A500(重叠度80%+)"
+      - "黄金ETF 10% — 暂不配置"
+    modified:
+      - "港股科技 30% → 25% — 资金分流A500"
+      - "标普500 0% → 条件触发 — 等PE<22倍+溢价<2%"
+      - "纳指100 30% → 0%(出清中) — 4批8周出清, PE<25暂停"

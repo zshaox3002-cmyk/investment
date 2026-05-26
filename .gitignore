@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
+
+# venv
+.venv/
+venv/
+env/
+
+# OS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# DB / runtime
+data/portfolio.db-journal
+data/portfolio.db-wal
+data/portfolio.db-shm
+data/snapshots/
+tmp/
+
+# Logs
+*.log

@@ -1,0 +1,466 @@
+# ============================================================
+# portfolio/config/rules.yaml
+# 个人投资者持仓优化系统 · 风控铁律配置
+# ============================================================
+# 版本：v1.0
+# 创建日期：2026-05-23
+# 维护人：本人
+# 引用方：所有 trades/decision_*.md 必须在文首引用本文件
+# 修改原则：铁律修改需经"冷静期 7 天 + 书面理由"双重门槛
+# ============================================================
+
+meta:
+  version: "1.1"
+  created_at: "2026-05-23"
+  last_modified: "2026-05-24"
+  modification_log:
+    - date: "2026-05-23"
+      change: "初版建立"
+      reason: "南山铝业仓位 25.59% 触发结构性整改，需要明确合规基线"
+    - date: "2026-05-24"
+      change: "新增两阶段再平衡框架说明；新增 C 档超配违规记录"
+      reason: "确认总资产 ¥4,295,748，采用排除美团RSU的再平衡基准（A/B/C档基准资产 ¥1,285,798）"
+
+# ============================================================
+# 一、组合层面铁律（Portfolio-level Hard Rules）
+# 触发即必须执行，不接受"thesis 仍然成立"作为豁免理由
+# ============================================================
+portfolio_rules:
+
+  # --- 1.1 集中度铁律 ---
+  concentration:
+    single_stock_max:
+      threshold: 0.25                    # 单一个股仓位上限 25%
+      action: "force_reduce"             # 触发动作：强制降权
+      grace_period_days: 30              # 整改宽限期：30 天内必须降至阈值以下
+      target_after_reduction: 0.20       # 降权后建议目标仓位 ≤20%
+      escalation: "若 30 天后仍超标，剩余超标部分按市价直接卖出"
+
+    top3_concentration_max:
+      threshold: 0.50                    # 前 3 大持仓合计上限 50%
+      action: "warning"                  # 触发动作：预警（非强制）
+      review_required: true              # 需触发组合层面复盘
+
+    top5_concentration_max:
+      threshold: 0.70                    # 前 5 大持仓合计上限 70%
+      action: "force_reduce"
+      grace_period_days: 60
+
+  # --- 1.2 行业集中度铁律 ---
+  sector_concentration:
+    single_sector_max:
+      threshold: 0.40                    # 单一行业上限 40%
+      action: "warning"
+      sector_definition: "GICS 一级 + 自定义合并规则"
+      merger_rules:
+        # 隐性集中：本质相关的行业必须合并计算
+        - merge: ["互联网", "电商", "云计算", "SaaS"]
+          as: "广义科技"
+        - merge: ["地产", "建材", "家电", "建筑"]
+          as: "广义地产链"
+        - merge: ["银行", "保险", "券商"]
+          as: "广义金融"
+
+    correlated_holdings_max:
+      threshold: 0.30                    # 高相关性标的合计上限 30%
+      definition: "近 12 个月日收益率相关系数 ≥0.7"
+      action: "warning"
+
+  # --- 1.3 主题集中度铁律 ---
+  theme_concentration:
+    new_energy_and_power_chain:
+      threshold: 0.35                    # 新能源/电力链主题上限 35%
+      action: "warning"
+      includes:
+        - "新能源汽车"
+        - "动力电池"
+        - "光伏/太阳能"
+        - "核电/核燃料"
+        - "有色金属/铝加工"              # 南山铝业与新能源产业链高度相关
+
+    single_theme_hard_max:
+      threshold: 0.50                    # 任单一主题绝对上限 50%
+      action: "force_reduce"
+
+  # --- 1.5 风格平衡铁律 ---
+  style_balance:
+    min_defensive_exposure:
+      threshold: 0.15                    # 防御性资产下限 15%
+      action: "warning"
+      includes: ["货币基金", "短债", "现金"]
+      note: "高股息股票仍属权益类资产，不计入防御资产"
+
+    max_growth_exposure:
+      threshold: 0.60                    # 成长股仓位上限 60%
+      action: "warning"
+
+  # --- 1.6 回撤控制铁律 ---
+  drawdown_control:
+    lookback_window_days: 252            # 回看窗口：1 个交易年
+
+    level_1_alert:
+      threshold: 0.10                    # 组合回撤 10% 预警
+      action: "alert_only"
+      measures:
+        - "组合层面复盘"
+        - "暂停补仓 7 天（非禁止，需额外满足 thesis ≥ 4.0）"
+
+    level_2_control:
+      threshold: 0.15                    # 组合回撤 15% 控制
+      action: "force_review"
+      measures:
+        - "暂停新建个股 30 天"
+        - "禁止向亏损个股补仓"
+        - "复盘前 5 大持仓和主题集中度"
+
+    level_3_hard:
+      threshold: 0.20                    # 组合回撤 20% 硬刹车（底线）
+      action: "force_reduce"
+      measures:
+        - "停止所有新建仓 60 天"
+        - "主动个股总仓位降至 ≤25%"
+        - "现金/短债类资产提高到 ≥15%"
+
+  # --- 1.7 C 仓位总量铁律 ---
+  active_position_total:
+    target: 0.25                         # C 仓位目标占总组合 25%（总组合 = A/B/C 档，排除美团RSU等D档资产）
+    hard_max: 0.30                       # C 仓位硬上限 30%
+    action: "force_reduce"               # 超 30% 强制降仓
+    note: "超出部分按 fund_routing 规则分配至 A/B 档"
+    no_new_individual_stock_if_above: 0.30  # C 仓位超 30% 禁止新建个股
+    rebalance_base_note: "第一阶段（至2027-11）总组合基准 = ¥1,285,798（排除美团RSU），C 档当前 48.38%，超限整改中"
+
+# ============================================================
+# 二、个股层面铁律（Stock-level Hard Rules）
+# ============================================================
+stock_rules:
+
+  # --- 2.1 单股止损铁律 ---
+  stop_loss:
+    level_1_alert:
+      threshold: -0.10                   # 单股浮亏 10% 关注
+      action: "alert_only"
+      measures:
+        - "记录下跌原因（业绩/估值/行业/大盘/事件）"
+        - "补仓需额外满足 thesis ≥ 4.0（提高门槛，不禁止）"
+
+    level_2_review:
+      threshold: -0.20                   # 单股浮亏 20% 审视
+      action: "trigger_ic_memo"
+      decision_deadline_days: 7          # 7 天内必须给出"持有/减仓/清仓"决策
+      measures:
+        - "强制更新 thesis"
+        - "检查是否触发主题集中度或行业集中度告警"
+
+    level_3_hard:
+      threshold: -0.30                   # 单股浮亏 30% 强制行动
+      action: "force_review"
+      measures:
+        - "若 thesis_score < 3.0：减仓至少 50%"
+        - "若 thesis_score ≥ 3.0：只允许维持，不允许补仓"
+        - "30 天内执行完毕"
+
+    thesis_break_stop:
+      condition: "thesis 评分 ≤2.0/5 且持续 2 个季度"
+      action: "force_exit"
+      exit_period_days: 30               # 30 天内必须清仓
+
+  # --- 2.2 单股加仓铁律 ---
+  position_increase:
+    max_position_per_stock:
+      threshold: 0.20                    # 单股目标仓位上限 20%（buffer 5%）
+      reason: "为 single_stock_max(25%) 留出 5% 价格波动缓冲"
+
+    averaging_down_rules:
+      # "向下补仓"铁律（区别于"价格触发加仓"）
+      enabled: true
+      preconditions:
+        - "必须先通过减仓产生回笼资金"
+        - "补仓金额 ≤ 同期减出回笼资金的 30%"
+        - "价格触发：跌破近 6 个月低点"
+        - "时间触发：跌破后横盘观察 ≥5 个交易日"
+        - "事件触发：观察期内无重大利空（业绩预警/评级下调/重大事故/高管离职）"
+        - "thesis_score 必须 ≥ 3.5"
+        - "组合处于 drawdown level_2 或 level_3 时，禁止补仓"
+        - "不得因为摊低成本而补仓——补仓理由必须是 thesis 加强或估值显著低估"
+      exit_plan_required: true           # 必须预设退出方案
+      default_exit:
+        take_profit: "+15%"
+        stop_loss: "-10%"
+      cooling_period_between_tranches_days: 30  # 同一标的两次补仓间隔 ≥30 天
+
+  # --- 2.3 thesis 维护铁律 ---
+  thesis_maintenance:
+    update_frequency_days: 90            # 季度强制更新
+    stale_analysis_deadline_days: 7      # thesis 更新后，引用该 thesis 的分析文件应在 7 天内刷新
+    event_triggered_update:
+      triggers:
+        - "财报发布"
+        - "重大公告（并购、再融资、高管变动）"
+        - "评级下调或上调"
+        - "回撤 ≥15%"
+        - "价格突破近 1 年新高/新低"
+      update_deadline_days: 7
+
+    veto_triggers:
+      # 任一触发即强制重新评估，不受当前 thesis 评分保护
+      - "核心投资逻辑被证伪"
+      - "连续两个季度业绩明显低于预期"
+      - "经营现金流明显恶化"
+      - "行业景气度发生反转"
+      - "重大财务、管理层或信用风险"
+      - "买入理由主要来自个人体验而非公司经营数据"
+
+    thesis_score_action_mapping:
+      # thesis 综合评分 → 默认动作建议
+      - score_range: [4.5, 5.0]
+        rating: "⭐⭐⭐⭐⭐"
+        action: "强烈持有，可考虑加仓至上限"
+      - score_range: [3.5, 4.5]
+        rating: "⭐⭐⭐⭐"
+        action: "持有"
+      - score_range: [2.5, 3.5]
+        rating: "⭐⭐⭐"
+        action: "观察，考虑减仓"
+      - score_range: [1.5, 2.5]
+        rating: "⭐⭐"
+        action: "减仓至 50% 以下"
+      - score_range: [0, 1.5]
+        rating: "⭐"
+        action: "30 天内清仓"
+
+# ============================================================
+# 三、交易行为铁律（Trading Behavior Hard Rules）
+# ============================================================
+trading_rules:
+
+  # --- 3.1 冷静期铁律 ---
+  cooling_period:
+    new_position_cooling_days: 7         # 新建仓决策后必须冷静 7 天
+    sell_decision_cooling_days: 3        # 卖出决策冷静 3 天（除强制减仓外）
+    averaging_down_cooling_days: 5       # 补仓决策冷静 5 天
+
+    exemptions:
+      # 豁免冷静期的场景
+      - "rules.yaml 触发的强制减仓动作"
+      - "thesis 完全证伪后的清仓动作"
+      - "重大利空事件下的紧急退出"
+      - "定投宽基 ETF 和债券基金再平衡（不适用冷静期）"
+
+  # --- 3.2 单笔交易额度铁律 ---
+  trade_size:
+    single_trade_max_pct_of_portfolio:
+      threshold: 0.05                    # 单笔交易不超过总组合 5%
+      action: "warning"
+
+    single_trade_max_pct_of_position:
+      threshold: 0.40                    # 单笔交易不超过该标的仓位的 40%
+      reason: "避免一次性下单造成滑点和决策失误"
+      exemptions:
+        - "强制清仓（thesis 完全证伪）"
+        - "标的市值已 <1% 总仓位"
+
+    daily_total_trade_max_pct:
+      threshold: 0.10                    # 单日交易总额不超过总组合的 10%
+      action: "warning"
+
+  # --- 3.3 资金流向铁律 ---
+  fund_routing:
+    # 减仓回笼资金的强制分配比例
+    reduction_proceeds_allocation:
+      A_cash_or_short_bond: 0.30         # 30% 进 A 档（货币基金/短债）
+      B_core_etf: 0.70                   # 70% 进 B 档（核心 ETF）
+      C_individual_stocks: 0.00          # 0% 重新进入个股（强制限制）
+
+      exception_for_averaging_down:
+        # 仅当满足 averaging_down_rules 全部前置条件时
+        # 可从 A 档划拨不超过 30% 用于补仓原标的
+        max_from_A_to_C: 0.30
+        scope: "仅限补仓原标的，不可用于新建仓"
+
+  # --- 3.4 新建仓铁律 ---
+  new_position:
+    require_ic_memo: true                # 必须先跑 ic-memo prompt
+    initial_position_max: 0.05           # 初始建仓不超过总组合 5%
+    full_position_buildup_min_days: 30   # 建至目标仓位的最短时间
+    require_macro_alignment: true        # 必须与 config/macro.md 当前判断一致
+
+# ============================================================
+# 四、决策流程铁律（Decision Process Hard Rules）
+# ============================================================
+decision_process:
+
+  # --- 4.1 决策文件强制要求 ---
+  documentation_required:
+    any_individual_stock_trade_above_pct: 0.015   # 个股交易超总仓位 1.5% 必须留痕
+    any_etf_trade_above_pct: 0.05                 # ETF 交易超 5% 留痕
+    must_create_file: "trades/decision_*.md"
+    must_reference:
+      - "config/rules.yaml（合规依据）"
+      - "theses/[代码]_thesis.md（个股依据）"
+      - "config/macro.md（宏观依据）"
+
+    minimum_sections:
+      - "决策事实（标的、股数、价格、金额）"
+      - "决策依据（rules 引用 + thesis 引用）"
+      - "执行节奏（分几笔、何时执行、触发条件）"
+      - "退出预案（盈利退出 / 止损退出）"
+      - "复盘节点（执行后何时回看）"
+
+  # --- 4.2 反人性检查清单 ---
+  bias_check:
+    # 每次决策前必须自问的清单
+    mandatory_questions:
+      - "如果这笔钱现在是现金，今天的价格我会买它吗？"
+      - "我是在做决策，还是在为已有的情绪寻找理由？"
+      - "如果决策错了，我能承受的最大损失是多少？"
+      - "这个决策违反了哪一条 rules.yaml？我有正当豁免理由吗？"
+      - "30 天后回看这个决策，我会为它感到骄傲吗？"
+      - "我买它，是因为未来风险收益比好，还是因为我已经亏损不甘心？"
+      - "如果这只股票今天清仓，我会重新买回同样仓位吗？"
+
+# ============================================================
+# 五、监控与告警铁律（Monitoring & Alert Hard Rules）
+# ============================================================
+monitoring:
+
+  daily_snapshot:
+    required: true
+    script: "scripts/daily_snapshot.py"
+    output: "reviews/daily/[YYYY-MM-DD].md"
+    fields:
+      - "标的代码"
+      - "持仓股数"
+      - "当日股价"
+      - "当日仓位占比"
+      - "累计盈亏%"
+      - "thesis 评分（最近一次）"
+
+  alert_triggers:
+    # 触发式告警条件（任一满足即告警）
+    - condition: "单股单日回撤 ≥8%"
+      action: "alerts/[date]_[code]_drawdown.md"
+    - condition: "单股连续5个交易日回撤 ≥12%"
+      action: "alerts/[date]_[code]_trend_drawdown.md"
+    - condition: "单股仓位偏离目标仓位 ±20%"
+      action: "alerts/[date]_[code]_drift.md"
+    - condition: "组合单日回撤 ≥4%"
+      action: "alerts/[date]_portfolio.md"
+    - condition: "组合近20个交易日回撤 ≥10%"
+      action: "alerts/[date]_portfolio_monthly_drawdown.md"
+    - condition: "主动个股总仓位 >35%"
+      action: "alerts/[date]_active_stock_overweight.md"
+    - condition: "持仓标的发布重大公告"
+      action: "alerts/[date]_[code]_event.md"
+    - condition: "rules.yaml 任一硬性铁律触发"
+      action: "alerts/[date]_rules_breach.md"
+
+  monthly_review:
+    required: true
+    output: "reviews/monthly/[YYYY-MM].md"
+    fields:
+      - "核心 ETF 仓位 vs 目标"
+      - "主动个股仓位 vs 上限"
+      - "前 3 大个股仓位"
+      - "前 5 大个股仓位"
+      - "主题集中度"
+      - "组合最大回撤（月内）"
+      - "本月是否触发 rules.yaml 硬性铁律"
+
+  # B 档 ETF 专用监控参数
+  etf_drawdown_warn: 0.20             # 单只 ETF 回撤超 20% 提示关注（不强制动作）
+  etf_drift_threshold: 0.05           # 实际比例偏离目标 ±5% 触发再平衡提醒
+
+# ============================================================
+# 六、C 仓位运营参数（Active Position Operational Params）
+# ============================================================
+active_position:
+  holding_count_min: 5
+  holding_count_max: 8
+  single_stock_max: 0.25              # 引用 portfolio_rules.concentration.single_stock_max.threshold
+  single_industry_max: 0.40           # 引用 portfolio_rules.sector_concentration.single_sector_max.threshold
+
+# ============================================================
+# 八、当前活跃豁免与例外（Active Exemptions）
+# ============================================================
+active_exemptions: []
+# 格式示例（无豁免时保持空数组）：
+# - exempt_rule: "single_stock_max"
+#   stock: "600219.SH"
+#   reason: "整改过渡期，30 天内降至阈值"
+#   approved_at: "2026-05-23"
+#   expires_at: "2026-06-22"
+#   approver: "本人"
+
+# ============================================================
+# 九、当前活跃违规事项（Active Breaches）
+# 必须在 grace_period 内归零
+# ============================================================
+active_breaches:
+  - rule: "single_stock_max"
+    stock: "600219.SH"
+    stock_name: "南山铝业"
+    current_value: 0.4516               # 占 C 仓位 45.16%（2026-05-24 快照）
+    threshold: 0.25
+    breach_amount: 0.2016
+    detected_at: "2026-05-23"
+    grace_period_expires: "2026-06-22"
+    action_plan: "trades/decision_002.md（待创建）"
+    status: "整改中"
+    remediation_type:
+      - "单股超限整改（45.16% → ≤25%）"
+      - "主题集中度整改（有色金属/铝加工纳入新能源/电力链主题）"
+    target_after_reduction: 0.20
+    notes: |
+      当前持仓 53,200 股 × ¥5.28 = ¥280,896，占 C 仓位 45.16%。
+      需在 30 天宽限期内降至 25% 以下。
+      回笼资金按 70%/30% 进 B 档/A 档。
+
+  - rule: "theme_concentration"
+    theme: "新能源/电力链"
+    stocks: ["002594(比亚迪)", "02015(理想汽车-W)", "601012(隆基绿能)", "600219(南山铝业)", "001280(中国铀业)"]
+    current_value: 0.8415               # 占 C 仓位 84.15%（5/7 只个股均属同一主题链）
+    threshold: 0.35
+    breach_amount: 0.4915
+    detected_at: "2026-05-24"
+    grace_period_expires: "2026-08-24"
+    status: "观察中"
+    notes: |
+      5/7 只 C 仓位个股与新能源/电力需求/产业升级存在主题关联。
+      单一主题高度集中，行情反转时可能同步回撤。
+      优先通过降低南山铝业仓位缓解，而非分散到不熟悉的领域。
+
+  - rule: "active_position_total"
+    current_value: 0.4838               # C 档占 A/B/C 基准资产 48.38%（2026-05-24 快照）
+    threshold: 0.30
+    breach_amount: 0.1838
+    detected_at: "2026-05-24"
+    grace_period_expires: "2026-06-22"
+    action_plan: "C 仓位重组（清仓理想汽车/隆基绿能/中国铀业，减仓南山铝业）"
+    status: "整改中"
+    notes: |
+      基准资产 ¥1,285,798（排除美团RSU），C 档 ¥622,028 = 48.38%，超 hard_max 30%。
+      C 仓位重组完成后预期降至 ¥333,333 = 25.92%，回归合规范围。
+
+# ============================================================
+# 十、铁律修改门禁（Meta Rules）
+# ============================================================
+meta_rules:
+  modification_constraints:
+    cooling_period_days: 7               # 修改 rules.yaml 需要 7 天冷静期
+    require_written_reason: true         # 必须书面记录修改理由
+    forbidden_modifications:
+      # 在已存在 active_breaches 时，禁止以下修改
+      - "提高 single_stock_max 阈值（解决违规问题）"
+      - "缩短 grace_period_days"
+      - "添加自我豁免性质的 active_exemptions"
+      # 永久禁止以下修改
+      - "在亏损状态下提高单股仓位上限"
+      - "在主动个股超配状态下提高 C 仓位总上限"
+      - "为某一只亏损个股单独创建豁免"
+      - "用新的叙事替代原始买入逻辑但不写 thesis 更新"
+    review_frequency_days: 90            # 每季度回顾一次铁律是否合理
+
+# ============================================================
+# END OF FILE
+# ============================================================
