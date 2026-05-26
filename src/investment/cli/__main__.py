@@ -24,11 +24,19 @@ data_app = typer.Typer(help="Data inspection.", no_args_is_help=True)
 snapshot_app = typer.Typer(help="Daily snapshot commands.", no_args_is_help=True)
 dashboard_app = typer.Typer(help="Dashboard generation.", no_args_is_help=True)
 thesis_app = typer.Typer(help="Thesis management.", no_args_is_help=True)
+trade_app = typer.Typer(help="Trade decisions and logs.", no_args_is_help=True)
+exec_app = typer.Typer(help="Execution monitoring.", no_args_is_help=True)
+candidate_app = typer.Typer(help="Candidate pool.", no_args_is_help=True)
+review_app = typer.Typer(help="Trade reviews.", no_args_is_help=True)
 app.add_typer(migrate_app, name="migrate")
 app.add_typer(data_app, name="data")
 app.add_typer(snapshot_app, name="snapshot")
 app.add_typer(dashboard_app, name="dashboard")
 app.add_typer(thesis_app, name="thesis")
+app.add_typer(trade_app, name="trade")
+app.add_typer(exec_app, name="exec")
+app.add_typer(candidate_app, name="candidate")
+app.add_typer(review_app, name="review")
 
 
 @app.command()
@@ -200,6 +208,249 @@ def thesis_stale(
         score = f"{r['current_score']:.2f}" if r["current_score"] is not None else "—"
         days_s = f"{int(r['days_since'])}" if r["days_since"] else "?"
         table.add_row(r["code"], r["name"], score, r["updated_at"] or "—", days_s)
+    console.print(table)
+
+
+# ── Trade commands ────────────────────────────────────────────────────────
+
+@trade_app.command("decision")
+def trade_decision_new(
+    code: str = typer.Argument(help="Stock code"),
+    decision_type: str = typer.Option("REDUCE", "--type", "-t",
+                                       help="NEW|ADD|REDUCE|EXIT|REBALANCE|EMERGENCY"),
+    notes: str = typer.Option("", "--notes", "-n"),
+    ic_memo: bool = typer.Option(False, "--ic-memo", help="Mark IC memo as passed"),
+) -> None:
+    """Create a new decision record and stub markdown."""
+    from investment.workflow.trade import new_decision
+    result = new_decision(code, decision_type, notes, ic_memo)
+    console.print(f"[green]✓[/green] {result['decision_no']} created → {result['body_path']}")
+
+
+@trade_app.command("list")
+def trade_decision_list(
+    status: str = typer.Option("active", "--status", help="active|all|executed|cancelled"),
+) -> None:
+    """List decisions."""
+    from investment.workflow.trade import list_decisions
+    rows = list_decisions(status)
+    table = Table(title=f"Decisions ({status})")
+    table.add_column("No")
+    table.add_column("Date")
+    table.add_column("Type")
+    table.add_column("Code")
+    table.add_column("Status")
+    table.add_column("IC Memo")
+    for r in rows:
+        table.add_row(
+            r["decision_no"], r["decision_date"], r["decision_type"],
+            r["code"] or "—", r["status"],
+            "✅" if r["ic_memo_passed"] else "❌",
+        )
+    console.print(table)
+
+
+@trade_app.command("log")
+def trade_log(
+    code: str = typer.Argument(help="Stock code"),
+    shares: float = typer.Option(..., "--shares", "-s"),
+    price: float = typer.Option(..., "--price", "-p"),
+    side: str = typer.Option("BUY", "--side", help="BUY|SELL"),
+    decision: str = typer.Option("", "--decision-id", "-d", help="decision_NNN"),
+    fees: float = typer.Option(0.0, "--fees"),
+    notes: str = typer.Option("", "--notes"),
+    trade_date: str = typer.Option("", "--date"),
+) -> None:
+    """Record a trade execution."""
+    from investment.workflow.trade import log_trade
+    tid = log_trade(
+        code, shares, price, side,
+        decision_no=decision or None,
+        fees=fees, notes=notes,
+        trade_date=trade_date or None,
+    )
+    console.print(f"[green]✓[/green] trade #{tid} logged: {side} {shares:.0f} × ¥{price:.3f}")
+
+
+@trade_app.command("stop")
+def trade_stop_add(
+    code: str = typer.Argument(help="Stock code"),
+    decision: str = typer.Option(..., "--decision-id", "-d"),
+    rule_type: str = typer.Option(..., "--type", "-t",
+                                   help="GRID_SELL|GRID_BUY|STOP_LOSS|TAKE_PROFIT|HARD_DD"),
+    trigger_kind: str = typer.Option("PRICE_ABS", "--trigger-kind"),
+    trigger_value: float = typer.Option(..., "--trigger-value", "-v"),
+    action: str = typer.Option(..., "--action", "-a"),
+    shares: float = typer.Option(0.0, "--shares"),
+    priority: int = typer.Option(100, "--priority"),
+) -> None:
+    """Add a stop rule."""
+    from investment.workflow.trade import add_stop_rule
+    rid = add_stop_rule(
+        code, decision, rule_type, trigger_kind, trigger_value, action,
+        shares=shares or None, priority=priority,
+    )
+    console.print(f"[green]✓[/green] stop_rule #{rid} added: {rule_type} @ {trigger_value}")
+
+
+@trade_app.command("apply")
+def trade_apply(
+    trade_id: int = typer.Argument(help="Trade ID to apply to holdings"),
+) -> None:
+    """Apply a trade to update holdings (shares + weighted avg cost)."""
+    from investment.workflow.trade import apply_trade
+    result = apply_trade(trade_id)
+    console.print(
+        f"[green]✓[/green] trade #{trade_id} applied: "
+        f"shares={result['new_shares']:.0f}, cost=¥{result['new_cost']:.3f}"
+    )
+
+
+# ── Exec monitor ──────────────────────────────────────────────────────────
+
+@exec_app.command("monitor")
+def exec_monitor() -> None:
+    """Check armed stop_rules against latest quotes."""
+    from investment.workflow.trade import monitor_executions
+    results = monitor_executions()
+    if not results:
+        console.print("[yellow]No armed stop rules found[/yellow]")
+        return
+    table = Table(title="Stop Rules Monitor")
+    table.add_column("ID")
+    table.add_column("Code")
+    table.add_column("Type")
+    table.add_column("Trigger")
+    table.add_column("Current")
+    table.add_column("Action")
+    table.add_column("Status")
+    for r in results:
+        tv = f"{r['trigger_value']:.3f}" if r["trigger_value"] is not None else "—"
+        cp = f"¥{r['current_price']:.3f}" if r["current_price"] else "—"
+        table.add_row(
+            str(r["id"]), r["code"], r["rule_type"],
+            f"{r['trigger_kind']}={tv}", cp,
+            r["action"][:30], r["status"],
+        )
+    console.print(table)
+
+
+# ── Candidate commands ────────────────────────────────────────────────────
+
+@candidate_app.command("scan")
+def candidate_scan(
+    source: str = typer.Option("akshare", "--source", help="akshare|manual"),
+    csv_file: str = typer.Option("", "--csv", help="CSV file path (manual mode)"),
+    quick: bool = typer.Option(False, "--quick", help="Quick mode (sample 200 stocks)"),
+) -> None:
+    """Scan candidate pool."""
+    if source == "manual":
+        if not csv_file:
+            console.print("[red]--csv required for manual mode[/red]")
+            raise typer.Exit(1)
+        from investment.workflow.candidate import scan_manual
+        n = scan_manual(csv_file)
+    else:
+        from investment.workflow.candidate import scan_akshare
+        n = scan_akshare(quick=quick)
+    console.print(f"[green]✓[/green] {n} candidates inserted")
+
+
+@candidate_app.command("list")
+def candidate_list(
+    priority: int = typer.Option(0, "--priority", help="Max priority (0=all)"),
+    status: str = typer.Option("candidate", "--status"),
+    limit: int = typer.Option(30, "--limit"),
+) -> None:
+    """List candidates."""
+    from investment.workflow.candidate import list_candidates
+    rows = list_candidates(
+        priority=priority or None,
+        status=status,
+        limit=limit,
+    )
+    table = Table(title=f"Candidates ({status})")
+    table.add_column("ID")
+    table.add_column("Code")
+    table.add_column("Name")
+    table.add_column("PE")
+    table.add_column("ROE")
+    table.add_column("Score")
+    table.add_column("Compliant")
+    table.add_column("Status")
+    for r in rows:
+        pe = f"{r['pe_ttm']:.1f}" if r["pe_ttm"] else "—"
+        roe = f"{r['roe_3y_avg']*100:.1f}%" if r["roe_3y_avg"] else "—"
+        score = f"{r['composite_score']:.2f}" if r["composite_score"] else "—"
+        compliant = "✅" if r["compliance_passed"] else f"❌ {r['compliance_blocked_by'] or ''}"
+        table.add_row(
+            str(r["id"]), r["code"], r["name"],
+            pe, roe, score, compliant, r["status"],
+        )
+    console.print(table)
+
+
+@candidate_app.command("promote")
+def candidate_promote(
+    candidate_id: int = typer.Argument(help="Candidate ID"),
+    to: str = typer.Option(..., "--to", help="ic_memo|accepted|rejected|researching|expired"),
+) -> None:
+    """Promote a candidate to a new status."""
+    from investment.workflow.candidate import promote_candidate
+    ok = promote_candidate(candidate_id, to)
+    if ok:
+        console.print(f"[green]✓[/green] candidate #{candidate_id} → {to}")
+    else:
+        console.print(f"[red]candidate #{candidate_id} not found[/red]")
+        raise typer.Exit(1)
+
+
+# ── Review commands ───────────────────────────────────────────────────────
+
+@review_app.command("log")
+def review_log(
+    trade_id: int = typer.Option(..., "--trade-id", "-t"),
+    outcome: str = typer.Option(..., "--outcome", "-o",
+                                 help="win|loss|break_even|partial"),
+    errors: str = typer.Option("", "--errors", "-e",
+                                help="Comma-separated error codes"),
+    emotion: str = typer.Option("", "--emotion"),
+    pnl: float = typer.Option(0.0, "--pnl"),
+    rule_breach: bool = typer.Option(False, "--rule-breach"),
+) -> None:
+    """Record a trade review."""
+    from investment.workflow.review import log_review, ERROR_CODES
+    error_list = [e.strip().upper() for e in errors.split(",") if e.strip()] if errors else []
+    rid = log_review(
+        trade_id, outcome, error_list,
+        emotion=emotion, result_pnl=pnl or None,
+        rule_breach=rule_breach,
+    )
+    console.print(f"[green]✓[/green] review #{rid} logged for trade #{trade_id}")
+
+
+@review_app.command("stats")
+def review_stats(
+    months: int = typer.Option(3, "--months", "-m"),
+) -> None:
+    """Show error code frequency over last N months."""
+    from investment.workflow.review import review_stats as get_stats, ERROR_LABELS
+    rows = get_stats(months)
+    if not rows:
+        console.print(f"[green]No reviews in last {months} months[/green]")
+        return
+    table = Table(title=f"Error Frequency (last {months} months)")
+    table.add_column("Error Code")
+    table.add_column("Label")
+    table.add_column("Count")
+    table.add_column("Severity Score")
+    for r in rows:
+        table.add_row(
+            r["error_code"],
+            ERROR_LABELS.get(r["error_code"], r["error_code"]),
+            str(r["count"]),
+            str(r["severity_score"]),
+        )
     console.print(table)
 
 
