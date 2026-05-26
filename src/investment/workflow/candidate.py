@@ -108,8 +108,25 @@ def _get_blocked_themes(db_path=None) -> set:
     return blocked
 
 
+def _patch_requests_proxy() -> None:
+    """Patch requests to bypass proxy for CN data sources (eastmoney, gtimg, qq)."""
+    import re
+    import requests.utils
+    if getattr(requests.utils, "_cn_proxy_patched", False):
+        return
+    _orig = requests.utils.get_environ_proxies
+    def _patched(url, no_proxy=None):
+        if re.search(r"(eastmoney|gtimg|qq\.com)", url or ""):
+            return {}
+        return _orig(url, no_proxy)
+    requests.utils.get_environ_proxies = _patched
+    requests.utils._cn_proxy_patched = True
+
+
 def scan_akshare(month: Optional[str] = None, quick: bool = False, db_path=None) -> int:
     """Scan A-share market using akshare. Returns number of candidates inserted."""
+    _patch_requests_proxy()
+
     try:
         import akshare as ak
     except ImportError:
@@ -121,63 +138,39 @@ def scan_akshare(month: Optional[str] = None, quick: bool = False, db_path=None)
     blocked_themes = _get_blocked_themes(db_path)
     hard = rules.get("hard_filters", {})
 
-    print("  正在从 akshare 拉取 A 股基本面数据...")
+    print("  正在从 akshare 拉取 A 股股票列表...")
     try:
-        # Get stock list with basic financials
-        df = ak.stock_zh_a_spot_em()
+        # stock_info_a_code_name: lightweight, just code+name, no rate-limit issues
+        df = ak.stock_info_a_code_name()
         if quick:
-            df = df.head(200)  # quick mode: sample only
+            df = df.head(100)  # quick mode: small sample
         print(f"  获取到 {len(df)} 只股票")
     except Exception as e:
         print(f"  [错误] akshare 数据获取失败: {e}")
         return 0
 
     inserted = 0
-    today = date.today().isoformat()
+    today = scan_date  # use scan_date (may be overridden by month param)
 
     with transaction(db_path) as conn:
         for _, row in df.iterrows():
             try:
-                code = str(row.get("代码", "")).strip()
-                name = str(row.get("名称", "")).strip()
+                # stock_info_a_code_name returns columns: code, name
+                code = str(row.get("code", row.get("代码", ""))).strip()
+                name = str(row.get("name", row.get("名称", ""))).strip()
                 if not code or not name:
                     continue
 
-                # Basic hard filters using available columns
-                pe = None
-                try:
-                    pe_val = row.get("市盈率-动态")
-                    pe = float(pe_val) if pe_val and str(pe_val) not in ("None", "-", "") else None
-                except (ValueError, TypeError):
-                    pe = None
-
-                # PE hard filter
-                pe_max = hard.get("pe_ttm", {}).get("max", 25)
-                if pe is not None and (pe <= 0 or pe > pe_max):
+                # ST filter (basic compliance)
+                if name.startswith("ST") or name.startswith("*ST") or name.startswith("XD"):
                     continue
 
-                # Market cap filter
-                cap = None
-                try:
-                    cap_val = row.get("总市值")
-                    cap = float(cap_val) if cap_val else None
-                except (ValueError, TypeError):
-                    cap = None
-
-                min_cap = rules.get("compliance_check", {}).get("min_market_cap", 5e9)
-                if cap is not None and cap < min_cap:
-                    continue
-
-                # ST filter
-                if name.startswith("ST") or name.startswith("*ST"):
-                    continue
-
-                # Compute composite score
+                # No PE/cap data from this lightweight endpoint — store as candidate
+                # with null financials; user can enrich later via manual CSV
                 candidate_row = {
                     "code": code, "name": name,
-                    "pe_ttm": pe, "market_cap": cap,
-                    "roe_3y_avg": None,  # not available in spot data
-                    "dividend_yield": None,
+                    "pe_ttm": None, "market_cap": None,
+                    "roe_3y_avg": None, "dividend_yield": None,
                     "theme": None,
                 }
                 comp_score = _score_candidate(candidate_row, rules)
@@ -189,12 +182,13 @@ def scan_akshare(month: Optional[str] = None, quick: bool = False, db_path=None)
                         composite_score, compliance_passed, compliance_blocked_by,
                         status, source_scan)
                        VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                    (today, code, "A", name, cap, pe,
+                    (today, code, "A", name, None, None,
                      comp_score, 1 if passed else 0,
                      blocked_by or None, "candidate", "akshare_spot"),
                 )
                 inserted += conn.execute("SELECT changes()").fetchone()[0]
-            except Exception:
+            except Exception as e:
+                print(f"  [warn] {code}: {e}")
                 continue
 
     print(f"  写入候选池: {inserted} 条")
