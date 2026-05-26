@@ -57,11 +57,19 @@ def run(db_path=None) -> bool:
                     ts_prices[row["code"].strip()] = float(p)
 
     csv_total = 0.0
+    # C tranche: holdings.csv
     with open(CONFIG_DIR / "holdings.csv", newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             code = row["code"].strip()
             shares = float(row["shares"])
             price = ts_prices.get(code, float(row.get("current_price", 0) or 0))
+            csv_total += shares * price
+    # B tranche: core_etf.csv
+    with open(CONFIG_DIR / "core_etf.csv", newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            code = row["code"].strip()
+            shares = float(row.get("shares", 0) or 0)
+            price = ts_prices.get(code, float(row.get("cost_price", 0) or 0))
             csv_total += shares * price
 
     diff_pct = abs(db_total - csv_total) / max(csv_total, 1)
@@ -109,12 +117,15 @@ def run(db_path=None) -> bool:
     # ── Check 3: Alert count ───────────────────────────────────────────────
     lines.append("## Check 3: Alert Count\n")
     file_count = len(list(ALERTS_DIR.glob("*.md")))
-    db_count = conn.execute("SELECT COUNT(*) AS n FROM alerts").fetchone()["n"]
+    # Only count alerts that came from migration (source files), not runtime alerts
+    db_count = conn.execute(
+        "SELECT COUNT(*) AS n FROM alerts WHERE body_path IS NOT NULL"
+    ).fetchone()["n"]
     status = "✅ OK" if db_count == file_count else "⚠️ DIFF"
     if db_count != file_count:
         all_ok = False
     lines.append(f"- alerts/*.md files: {file_count}")
-    lines.append(f"- DB alerts rows: {db_count}")
+    lines.append(f"- DB migrated alerts (with body_path): {db_count}")
     lines.append(f"- Status: {status}\n")
 
     # ── Check 4: Thesis scores ─────────────────────────────────────────────

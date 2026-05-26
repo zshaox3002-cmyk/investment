@@ -2,20 +2,20 @@
 
 ## Check 1: Holdings Total Market Value
 
-- DB total (B+C): ¥607,218
-- CSV total: ¥607,218
+- DB total (B+C): ¥756,031
+- CSV total: ¥756,031
 - Diff: 0.00% → ✅ OK
 
 ## Check 2: C-Tranche Position Ratio
 
 - rules.yaml active_breaches[active_position_total]: 48.38%
-- DB computed (C / excl-D total): 51.71%
+- DB computed (C / excl-D total): 45.90%
 - Note: rules.yaml uses base ¥1,285,798; DB uses live quotes. Difference is expected.
 
 ## Check 3: Alert Count
 
 - alerts/*.md files: 18
-- DB alerts rows: 18
+- DB migrated alerts (with body_path): 18
 - Status: ✅ OK
 
 ## Check 4: Thesis Scores (frontmatter vs DB)
@@ -49,5 +49,5 @@ These conflicts existed in the source files and are preserved for review.
 ### 5c: C-tranche ratio denominator mismatch
 - rules.yaml uses base ¥1,285,798 (excl. RSU): C ratio = 48.38%
 - daily reports use C_market_value / C_allocation: ratio = 188.9%
-- DB v_portfolio_snapshot uses live quotes / excl-D total: 51.71%
+- DB v_portfolio_snapshot uses live quotes / excl-D total: 45.90%
 - Resolution: DB is the canonical source. rules.yaml base is a snapshot.

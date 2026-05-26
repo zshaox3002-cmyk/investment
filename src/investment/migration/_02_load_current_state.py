@@ -39,7 +39,7 @@ def run(db_path=None) -> int:
     eff_date = _effective_date(HOLDINGS_CSV)
 
     with transaction(db_path) as conn:
-        # ── Stock holdings ─────────────────────────────────────────────────
+        # ── Stock holdings (C tranche) ─────────────────────────────────────
         with open(HOLDINGS_CSV, newline="", encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 code = row["code"].strip()
@@ -64,6 +64,30 @@ def run(db_path=None) -> int:
                     inserted += conn.execute("SELECT changes()").fetchone()[0]
                 except Exception as e:
                     failures.append((HOLDINGS_CSV.name, code, str(e)))
+
+        # ── ETF holdings (B tranche) ───────────────────────────────────────
+        ETF_CSV = CONFIG_DIR / "core_etf.csv"
+        with open(ETF_CSV, newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                code = row["code"].strip()
+                shares = float(row.get("shares", 0) or 0)
+                cost = float(row.get("cost_price", 0) or 0)
+                if shares == 0 and cost == 0:
+                    continue  # skip ETFs with no position yet
+                iid = instrument_id_by_code(conn, code, "A")
+                if iid is None:
+                    failures.append((ETF_CSV.name, code, "instrument not found"))
+                    continue
+                try:
+                    conn.execute(
+                        """INSERT OR IGNORE INTO holdings
+                           (instrument_id, effective_date, shares, cost_price, source)
+                           VALUES (?,?,?,?,?)""",
+                        (iid, eff_date, shares, cost, "migration"),
+                    )
+                    inserted += conn.execute("SELECT changes()").fetchone()[0]
+                except Exception as e:
+                    failures.append((ETF_CSV.name, code, str(e)))
 
         # ── Cash / bond / RSU balances ─────────────────────────────────────
         eff_date_cash = _effective_date(CASH_CSV)
