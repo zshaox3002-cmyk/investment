@@ -123,8 +123,58 @@ def _patch_requests_proxy() -> None:
     requests.utils._cn_proxy_patched = True
 
 
+def _fetch_ths_financials(code: str, ak, timeout_sec: int = 8) -> dict:
+    """Fetch latest ROE and net profit growth from THS (同花顺) for a single stock.
+
+    Returns dict with keys: roe_latest, net_profit_growth, or empty dict on failure.
+    Uses signal-based timeout to avoid hanging.
+    """
+    import signal
+
+    def _handler(signum, frame):
+        raise TimeoutError()
+
+    signal.signal(signal.SIGALRM, _handler)
+    signal.alarm(timeout_sec)
+    try:
+        df = ak.stock_financial_abstract_ths(symbol=code)
+        signal.alarm(0)
+        if df is None or df.empty:
+            return {}
+        # Get most recent row with valid ROE
+        for _, row in df.iterrows():
+            roe_raw = row.get("净资产收益率-摊薄", "")
+            if roe_raw and str(roe_raw) not in ("False", "", "nan"):
+                try:
+                    roe = float(str(roe_raw).replace("%", "")) / 100
+                    growth_raw = row.get("净利润同比增长率", "")
+                    growth = None
+                    if growth_raw and str(growth_raw) not in ("False", "", "nan"):
+                        growth = float(str(growth_raw).replace("%", "")) / 100
+                    return {"roe_latest": roe, "net_profit_growth": growth}
+                except (ValueError, TypeError):
+                    continue
+        return {}
+    except TimeoutError:
+        signal.alarm(0)
+        return {}
+    except Exception:
+        signal.alarm(0)
+        return {}
+
+
 def scan_akshare(month: Optional[str] = None, quick: bool = False, db_path=None) -> int:
-    """Scan A-share market using akshare. Returns number of candidates inserted."""
+    """Scan A-share market using akshare. Returns number of candidates inserted.
+
+    Data sources:
+      Primary:  stock_info_a_code_name (新浪多源) — full code+name list, stable
+      Financial: stock_financial_abstract_ths (同花顺) — ROE per stock, on-demand
+      Fallback: manual CSV via scan_manual()
+
+    quick=True: sample 20 stocks, fetch financials for all of them (validation mode)
+    quick=False: full 5500+ stocks, fetch financials only for non-ST candidates
+    """
+    import time
     _patch_requests_proxy()
 
     try:
@@ -136,62 +186,80 @@ def scan_akshare(month: Optional[str] = None, quick: bool = False, db_path=None)
     scan_date = month or date.today().isoformat()[:7] + "-01"
     rules = _load_screening_rules()
     blocked_themes = _get_blocked_themes(db_path)
-    hard = rules.get("hard_filters", {})
 
-    print("  正在从 akshare 拉取 A 股股票列表...")
+    # ── Step 1: fetch full code+name list ─────────────────────────────────
+    print("  [主] stock_info_a_code_name 拉取股票列表...")
     try:
-        # stock_info_a_code_name: lightweight, just code+name, no rate-limit issues
+        import signal
+        def _h(s, f): raise TimeoutError()
+        signal.signal(signal.SIGALRM, _h)
+        signal.alarm(30)
         df = ak.stock_info_a_code_name()
-        if quick:
-            df = df.head(100)  # quick mode: small sample
-        print(f"  获取到 {len(df)} 只股票")
+        signal.alarm(0)
+    except TimeoutError:
+        signal.alarm(0)
+        print("  [错误] 股票列表拉取超时(>30s)")
+        return 0
     except Exception as e:
-        print(f"  [错误] akshare 数据获取失败: {e}")
+        print(f"  [错误] 股票列表拉取失败: {e}")
         return 0
 
+    if quick:
+        df = df.head(20)
+    print(f"  获取到 {len(df)} 只股票，开始处理...")
+
+    # ── Step 2: filter + fetch financials ─────────────────────────────────
     inserted = 0
-    today = scan_date  # use scan_date (may be overridden by month param)
+    today = scan_date
+    fetch_limit = len(df)  # quick: all 20; full: all non-ST
 
     with transaction(db_path) as conn:
+        fetched = 0
         for _, row in df.iterrows():
+            code = str(row.get("code", row.get("代码", ""))).strip()
+            name = str(row.get("name", row.get("名称", ""))).strip()
+            if not code or not name:
+                continue
+            if name.startswith("ST") or name.startswith("*ST") or name.startswith("XD"):
+                continue
+
+            # Fetch financials from THS (with rate limiting)
+            financials = {}
+            if fetched < fetch_limit:
+                financials = _fetch_ths_financials(code, ak)
+                fetched += 1
+                if fetched % 5 == 0:
+                    print(f"    财务数据进度: {fetched}/{fetch_limit}")
+                if not quick:
+                    time.sleep(0.5)  # rate limit: 2 req/s in full mode
+
+            roe = financials.get("roe_latest")
+            candidate_row = {
+                "code": code, "name": name,
+                "pe_ttm": None, "market_cap": None,
+                "roe_3y_avg": roe,
+                "dividend_yield": None, "theme": None,
+            }
+            comp_score = _score_candidate(candidate_row, rules)
+            passed, blocked_by = _check_compliance(candidate_row, rules, blocked_themes)
+
             try:
-                # stock_info_a_code_name returns columns: code, name
-                code = str(row.get("code", row.get("代码", ""))).strip()
-                name = str(row.get("name", row.get("名称", ""))).strip()
-                if not code or not name:
-                    continue
-
-                # ST filter (basic compliance)
-                if name.startswith("ST") or name.startswith("*ST") or name.startswith("XD"):
-                    continue
-
-                # No PE/cap data from this lightweight endpoint — store as candidate
-                # with null financials; user can enrich later via manual CSV
-                candidate_row = {
-                    "code": code, "name": name,
-                    "pe_ttm": None, "market_cap": None,
-                    "roe_3y_avg": None, "dividend_yield": None,
-                    "theme": None,
-                }
-                comp_score = _score_candidate(candidate_row, rules)
-                passed, blocked_by = _check_compliance(candidate_row, rules, blocked_themes)
-
                 conn.execute(
                     """INSERT OR IGNORE INTO candidates
-                       (scan_date, code, market, name, market_cap, pe_ttm,
+                       (scan_date, code, market, name, roe_3y_avg,
                         composite_score, compliance_passed, compliance_blocked_by,
                         status, source_scan)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                    (today, code, "A", name, None, None,
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (today, code, "A", name, roe,
                      comp_score, 1 if passed else 0,
-                     blocked_by or None, "candidate", "akshare_spot"),
+                     blocked_by or None, "candidate", "akshare+ths"),
                 )
                 inserted += conn.execute("SELECT changes()").fetchone()[0]
             except Exception as e:
                 print(f"  [warn] {code}: {e}")
                 continue
 
-    print(f"  写入候选池: {inserted} 条")
+    print(f"  写入候选池: {inserted} 条（财务数据拉取: {fetched} 只）")
     return inserted
 
 
