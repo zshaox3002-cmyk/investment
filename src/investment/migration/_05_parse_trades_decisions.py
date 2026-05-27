@@ -178,8 +178,17 @@ def run(db_path=None) -> int:
             if iid_600219:
                 for rule in DECISION_002_STOP_RULES:
                     try:
+                        existing = conn.execute(
+                            """SELECT id FROM stop_rules
+                               WHERE instrument_id=? AND rule_type=?
+                                 AND trigger_kind=? AND trigger_value=?""",
+                            (iid_600219, rule["rule_type"],
+                             rule["trigger_kind"], rule["trigger_value"]),
+                        ).fetchone()
+                        if existing:
+                            continue
                         conn.execute(
-                            """INSERT OR IGNORE INTO stop_rules
+                            """INSERT INTO stop_rules
                                (decision_id, instrument_id, rule_type, trigger_kind,
                                 trigger_value, action, shares, priority, status)
                                VALUES (?,?,?,?,?,?,?,?,?)""",
