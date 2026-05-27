@@ -1,0 +1,21 @@
+# LLM configuration for AI-powered investment analysis
+# API key: set ANTHROPIC_API_KEY environment variable (never commit to git)
+
+default_model: claude-sonnet-4-5
+
+models:
+  claude-sonnet-4-5:
+    provider: anthropic
+    model_id: claude-sonnet-4-5-20251001
+    max_tokens: 4096
+    temperature: 0.3
+
+  claude-opus-4-7:
+    provider: anthropic
+    model_id: claude-opus-4-7-20250610
+    max_tokens: 8192
+    temperature: 0.3
+
+retry:
+  max_retries: 3
+  temperatures: [0.3, 0.1, 0.0]

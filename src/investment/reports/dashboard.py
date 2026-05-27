@@ -5,6 +5,7 @@ Preserves the same HTML structure and CSS as the original.
 """
 from __future__ import annotations
 
+import re
 import yaml
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -177,13 +178,70 @@ def _load_portfolio_from_db(conn) -> dict:
     }
 
 
+_SEVERITY_ORDER = {"critical": 3, "warning": 2, "info": 1}
+
+
+def _dedup_alerts(alerts: list[dict]) -> list[dict]:
+    """Remove redundant alerts.
+
+    Pass 1: exact duplicates (same alert_type + stock_code) — prefer rows
+            without body_path (cleaner checker-generated message).
+    Pass 2: drawdown levels (same stock_code + same family) — keep only the
+            highest severity level (L3 > L2 > L1).
+    """
+    if not alerts:
+        return alerts
+
+    # Pass 1: exact dedup by (alert_type, stock_code)
+    seen: dict[tuple, dict] = {}
+    deduped: list[dict] = []
+    for a in alerts:
+        key = (a["alert_type"], a["stock_code"])
+        if key in seen:
+            existing = seen[key]
+            # Prefer the alert without body_path (cleaner message)
+            if a.get("file") == "" and existing.get("file") != "":
+                idx = deduped.index(existing)
+                deduped[idx] = a
+                seen[key] = a
+        else:
+            seen[key] = a
+            deduped.append(a)
+
+    # Pass 2: for leveled alerts, keep only the highest severity per (stock_code, family)
+    families: dict[tuple, list[tuple[int, dict]]] = {}
+    for a in deduped:
+        m = re.match(r"^(.+)_l([123])$", a["alert_type"])
+        if not m:
+            continue
+        family = m.group(1)
+        key = (a["stock_code"], family)
+        families.setdefault(key, []).append((_SEVERITY_ORDER.get(a["severity"], 0), a))
+
+    drop_ids: set[int] = set()
+    for key, items in families.items():
+        if len(items) <= 1:
+            continue
+        items.sort(key=lambda x: x[0], reverse=True)
+        for _, a in items[1:]:
+            drop_ids.add(id(a))
+
+    result = [a for a in deduped if id(a) not in drop_ids]
+
+    # Recompute counts
+    counts = {"critical": 0, "warning": 0, "info": 0}
+    for a in result:
+        counts[a["severity"]] = counts.get(a["severity"], 0) + 1
+    return result
+
+
 def _load_alerts_from_db(conn, today: str) -> dict:
     """Load today's alerts from DB."""
     rows = conn.execute(
         """SELECT a.id, a.alert_type, a.severity, a.message, a.body_path,
                   i.code, i.name
            FROM alerts a
-           LEFT JOIN instruments i ON i.id=a.instrument_id
+           JOIN instruments i ON i.id=a.instrument_id AND i.active=1
            WHERE a.alert_date=? AND a.acknowledged=0
            ORDER BY CASE a.severity WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 ELSE 2 END""",
         (today,),
@@ -192,7 +250,6 @@ def _load_alerts_from_db(conn, today: str) -> dict:
     result = {"critical": 0, "warning": 0, "info": 0, "total": len(rows), "latest": []}
     for r in rows:
         sev = r["severity"]
-        result[sev] = result.get(sev, 0) + 1
         snippet = ""
         if r["body_path"]:
             bp = ROOT_DIR / r["body_path"]
@@ -206,6 +263,12 @@ def _load_alerts_from_db(conn, today: str) -> dict:
             "alert_type": r["alert_type"],
             "snippet": snippet or r["message"],
         })
+
+    # Dedup: remove redundant alerts (exact duplicates + lower drawdown levels)
+    result["latest"] = _dedup_alerts(result["latest"])
+    result["total"] = len(result["latest"])
+    for a in result["latest"]:
+        result[a["severity"]] = result.get(a["severity"], 0) + 1
     return result
 
 
@@ -581,6 +644,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",
 _JS = """
 function toggleAlert(id){var b=document.getElementById('alert-body-'+id);var h=document.getElementById('alert-header-'+id);if(b.style.display==='none'||!b.style.display){b.style.display='block';h.classList.add('expanded')}else{b.style.display='none';h.classList.remove('expanded')}}
 function scrollToAlertSection(){var e=document.getElementById('section-alerts');if(e){e.scrollIntoView({behavior:'smooth'});var cards=e.querySelectorAll('.alert-card-body');cards.forEach(function(c){c.style.display='block'});var headers=e.querySelectorAll('.alert-card-header');headers.forEach(function(h){h.classList.add('expanded')})}}
+function toggleCausal(idx){var d=document.getElementById('causal-detail-'+idx);if(d.style.display==='none'||!d.style.display){d.style.display='table-row'}else{d.style.display='none'}}
 """
 
 
@@ -593,6 +657,7 @@ def render(
     tracker: dict,
     events: list[dict],
     mode: str,
+    causal_section: str = "",
 ) -> str:
     today = date.today()
     today_str = today.strftime("%Y-%m-%d")
@@ -643,6 +708,8 @@ def render(
   {_render_compliance(breaches)}
 </div>
 
+{causal_section}
+
 <div class="col2">
   <div class="section pre-market-section">
     <div class="section-title"><span class="icon">🌅</span> 盘前检查清单</div>
@@ -682,11 +749,24 @@ def run(mode: str = "standard", db_path=None) -> Path:
     alerts = _load_alerts_from_db(conn, today)
     actions = _load_executions_from_db(conn, today)
     breaches = _load_breaches_from_db(conn)
+
+    # Causal impact chain section
+    causal_section = ""
+    try:
+        from investment.causal.dashboard_section import load_causal_assessments, render_causal_section
+        assessments = load_causal_assessments(conn, today)
+        causal_section = render_causal_section(assessments)
+    except Exception:
+        pass
+
     conn.close()
 
     tracker = _load_tracker_yaml()
     events = _load_macro_events()
 
-    html = render(portfolio, capital, alerts, actions, breaches, tracker, events, mode)
+    html = render(
+        portfolio, capital, alerts, actions, breaches, tracker, events,
+        mode, causal_section=causal_section,
+    )
     OUTPUT_PATH.write_text(html, encoding="utf-8")
     return OUTPUT_PATH

@@ -85,6 +85,17 @@ inv migrate verify                   # 数据对账
 inv snapshot pull                    # 端到端盘后流程
 ```
 
+## Bash 命令执行规范
+
+执行任何 Bash 命令时必须遵守：
+
+1. 所有可能耗时的命令加 `timeout 60s`（或合适时长）前缀
+2. 不用 `| tail -N` 隐藏输出；需截断时用 `tee /tmp/command.log` 保存完整日志
+3. 用 `tee /tmp/command.log` 保存命令日志
+4. 命令结束后报告：退出码、耗时、最后 20 行日志
+5. 命令超过 60 秒无输出，先停止并说明可能卡在哪里
+6. 可能交互的命令优先用非交互参数（`-y`、`--non-interactive`），或提前说明需要用户输入
+
 ## 重要约束
 - `config/*.yaml` 只放规则与目标，状态全部入 DB
 - 所有 thesis 放在 `theses/` 目录，按股票代码命名
