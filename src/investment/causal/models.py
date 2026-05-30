@@ -248,6 +248,11 @@ class ChainAssessment(BaseModel):
     paths_json: str = "[]"
     triggering_signal_ids: str = "[]"
     narrative_md: str = ""
+    # v2: enriched fields from AssessmentOutput
+    divergence_warning: str = ""
+    framework_dominant: str = ""
+    timeframe_short: str = ""
+    timeframe_medium: str = ""
     created_at: Optional[str] = None
 
 
@@ -262,10 +267,21 @@ class AssessedPath(BaseModel):
 
 
 class AssessmentOutput(BaseModel):
-    """Top-level LLM output schema for assessment-narrator."""
+    """Top-level LLM output schema for assessment-narrator (v2)."""
 
     narrative_md: str
-    direction: str = "neutral"  # positive|negative|neutral
-    impact_level: str = "L1"    # L1-L5
+    direction: str = "neutral"
+    impact_level: str = "L1"
     key_nodes: list[str] = []
     suggested_action: str = "建议观察"
+
+    # v2: time-frame aware fields
+    divergence_warning: str = ""
+    framework_dominant: str = ""
+    framework_competing: str = ""
+    framework_switch_risk: str = "low"
+    timeframe_short: str = ""
+    timeframe_medium: str = ""
+    uncertainty_core: list[str] = []
+    uncertainty_important: list[str] = []
+    uncertainty_tail: list[str] = []

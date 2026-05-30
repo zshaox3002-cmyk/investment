@@ -21,7 +21,8 @@ def load_causal_assessments(conn, date: str) -> list[dict]:
     rows = conn.execute(
         """SELECT ca.holding_code, ca.impact_score, ca.impact_level,
                   ca.direction, ca.paths_json, ca.triggering_signal_ids,
-                  ca.narrative_md,
+                  ca.narrative_md, ca.divergence_warning,
+                  ca.framework_dominant, ca.timeframe_short, ca.timeframe_medium,
                   i.name AS holding_name
            FROM chain_assessments ca
            LEFT JOIN instruments i ON i.code = ca.holding_code AND i.active = 1
@@ -52,6 +53,10 @@ def load_causal_assessments(conn, date: str) -> list[dict]:
             "signal_count": len(signal_ids),
             "narrative_md": r["narrative_md"] or "",
             "paths_json": r["paths_json"],
+            "divergence_warning": r["divergence_warning"] or "",
+            "framework_dominant": r["framework_dominant"] or "",
+            "timeframe_short": r["timeframe_short"] or "",
+            "timeframe_medium": r["timeframe_medium"] or "",
         })
 
     return results
@@ -101,14 +106,37 @@ def render_causal_section(assessments: list[dict]) -> str:
         else:
             suggested = "👁 观察"
 
+        # Divergence warning badge
+        div_warning = a.get("divergence_warning", "")
+        warn_html = ""
+        if div_warning:
+            warn_html = (
+                f' <span title="{div_warning}" style="display:inline-block;padding:1px 6px;'
+                f'border-radius:3px;font-size:10px;font-weight:700;color:#c53030;'
+                f'background:#fff5f5;border:1px solid #fc8181">⚠ 背离</span>'
+            )
+
+        # Framework + timeframe summary
+        framework = a.get("framework_dominant", "")
+        tf_short = a.get("timeframe_short", "")
+        tf_medium = a.get("timeframe_medium", "")
+
         narrative_escaped = narrative.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+        detail_html = f'<div style="margin-bottom:8px">{narrative_escaped}</div>'
+        if framework:
+            detail_html += f'<div style="font-size:11px;color:#718096;margin-top:6px"><b>框架:</b> {framework}</div>'
+        if tf_short:
+            detail_html += f'<div style="font-size:11px;color:#0066cc;margin-top:2px"><b>短期:</b> {tf_short}</div>'
+        if tf_medium:
+            detail_html += f'<div style="font-size:11px;color:#00875a;margin-top:2px"><b>中期:</b> {tf_medium}</div>'
 
         rows.append(
             f'<tr class="causal-row" onclick="toggleCausal({i})" style="cursor:pointer">'
             f'<td>{a["code"]}</td>'
             f'<td>{a["name"]}</td>'
             f'<td><span style="display:inline-block;padding:2px 10px;border-radius:10px;'
-            f'font-size:11px;font-weight:700;color:{lc[0]};background:{lc[1]}">{level}</span></td>'
+            f'font-size:11px;font-weight:700;color:{lc[0]};background:{lc[1]}">{level}</span>{warn_html}</td>'
             f'<td>{dir_icon} {direction}</td>'
             f'<td style="font-size:12px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{nodes_chain}</td>'
             f'<td style="text-align:center">{a["signal_count"]}</td>'
@@ -116,7 +144,7 @@ def render_causal_section(assessments: list[dict]) -> str:
             f'</tr>'
             f'<tr class="causal-detail" id="causal-detail-{i}" style="display:none">'
             f'<td colspan="7" style="padding:12px 16px;background:#f7f9fc;font-size:12px;'
-            f'color:#4a5568;white-space:pre-wrap;max-width:800px">{narrative_escaped}</td>'
+            f'color:#4a5568;white-space:pre-wrap;max-width:800px">{detail_html}</td>'
             f'</tr>'
         )
 

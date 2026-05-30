@@ -1,4 +1,7 @@
-"""Anthropic LLM client with schema-validated retry.
+"""Multi-provider LLM client with schema-validated retry.
+
+Supports Anthropic (native) and OpenAI-compatible (DeepSeek, etc.)
+configured via ``config/llm.yaml``.
 
 Usage::
 
@@ -12,7 +15,6 @@ import os
 from typing import Type, TypeVar
 
 import yaml
-from anthropic import Anthropic
 from pydantic import BaseModel
 
 from .settings import CONFIG_DIR
@@ -27,19 +29,10 @@ def _load_config() -> dict:
     global _config
     if _config is None:
         if _config_path.exists():
-            _config = yaml.safe_load(_config_path.read_text(encoding="utf-8"))
+            _config = yaml.safe_load(_config_path.read_text(encoding="utf-8")) or {}
         else:
             _config = {}
     return _config
-
-
-def _get_client() -> Anthropic:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY not set. Export it or add to .env file."
-        )
-    return Anthropic(api_key=api_key)
 
 
 def _resolve_model(model: str | None = None) -> tuple[str, dict]:
@@ -49,6 +42,38 @@ def _resolve_model(model: str | None = None) -> tuple[str, dict]:
     return model_cfg.get("model_id", model_name), model_cfg
 
 
+def _get_api_key(provider: str) -> str:
+    """Resolve API key for the given provider."""
+    env_map = {
+        "anthropic": "ANTHROPIC_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+        "openai": "OPENAI_API_KEY",
+    }
+    env_var = env_map.get(provider, f"{provider.upper()}_API_KEY")
+    api_key = os.environ.get(env_var)
+    if not api_key:
+        raise RuntimeError(
+            f"{env_var} not set. Export it or add to .env file."
+        )
+    return api_key
+
+
+def _make_client(model_cfg: dict):
+    """Create an API client based on provider config."""
+    provider = model_cfg.get("provider", "anthropic")
+
+    if provider == "anthropic":
+        from anthropic import Anthropic
+        api_key = _get_api_key("anthropic")
+        return "anthropic", Anthropic(api_key=api_key)
+
+    # OpenAI-compatible: openai, deepseek, moonshot, etc.
+    from openai import OpenAI
+    api_key = _get_api_key(provider)
+    base_url = model_cfg.get("base_url")
+    return "openai", OpenAI(api_key=api_key, base_url=base_url)
+
+
 def call_llm(
     prompt: str,
     model: str | None = None,
@@ -56,18 +81,36 @@ def call_llm(
     temperature: float | None = None,
     max_tokens: int | None = None,
 ) -> str:
-    """Call Anthropic Claude with a text prompt. Returns the reply text."""
-    client = _get_client()
+    """Call LLM with a text prompt. Returns the reply text."""
     model_id, model_cfg = _resolve_model(model)
+    provider_type, client = _make_client(model_cfg)
 
-    kwargs: dict = {"model": model_id, "max_tokens": max_tokens or model_cfg.get("max_tokens", 4096)}
+    if temperature is None:
+        temperature = model_cfg.get("temperature", 0.3)
+    if max_tokens is None:
+        max_tokens = model_cfg.get("max_tokens", 4096)
+
+    if provider_type == "anthropic":
+        kwargs: dict = {"model": model_id, "max_tokens": max_tokens}
+        if system_prompt:
+            kwargs["system"] = system_prompt
+        kwargs["temperature"] = temperature
+        messages = [{"role": "user", "content": prompt}]
+        response = client.messages.create(messages=messages, **kwargs)
+        return response.content[0].text
+
+    # OpenAI-compatible
+    messages = []
     if system_prompt:
-        kwargs["system"] = system_prompt
-    kwargs["temperature"] = temperature if temperature is not None else model_cfg.get("temperature", 0.3)
-
-    messages = [{"role": "user", "content": prompt}]
-    response = client.messages.create(messages=messages, **kwargs)
-    return response.content[0].text
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+    response = client.chat.completions.create(
+        model=model_id,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.content
 
 
 def call_llm_with_schema(
@@ -77,7 +120,7 @@ def call_llm_with_schema(
     system_prompt: str | None = None,
     max_retries: int = 3,
 ) -> T:
-    """Call Claude with Pydantic schema validation.
+    """Call LLM with Pydantic schema validation.
 
     On validation failure, retries up to ``max_retries`` times with
     decreasing temperature (0.3 → 0.1 → 0.0) and validation errors
@@ -85,14 +128,13 @@ def call_llm_with_schema(
 
     Returns the validated Pydantic model instance.
     """
-    client = _get_client()
     model_id, model_cfg = _resolve_model(model)
+    provider_type, client = _make_client(model_cfg)
     cfg = _load_config()
     retry_cfg = cfg.get("retry", {})
     temperatures = retry_cfg.get("temperatures", [0.3, 0.1, 0.0])
     max_tokens = model_cfg.get("max_tokens", 4096)
 
-    # Inject schema requirement into system prompt
     schema_desc = _schema_description(schema)
     full_system = (
         f"{system_prompt}\n\n"
@@ -114,15 +156,28 @@ def call_llm_with_schema(
                 f"Please fix the JSON and try again. Return ONLY valid JSON."
             )
 
-        messages = [{"role": "user", "content": user_prompt}]
-        response = client.messages.create(
-            model=model_id,
-            max_tokens=max_tokens,
-            temperature=temp,
-            system=full_system,
-            messages=messages,
-        )
-        raw = response.content[0].text
+        if provider_type == "anthropic":
+            messages = [{"role": "user", "content": user_prompt}]
+            response = client.messages.create(
+                model=model_id,
+                max_tokens=max_tokens,
+                temperature=temp,
+                system=full_system,
+                messages=messages,
+            )
+            raw = response.content[0].text
+        else:
+            messages = [
+                {"role": "system", "content": full_system},
+                {"role": "user", "content": user_prompt},
+            ]
+            response = client.chat.completions.create(
+                model=model_id,
+                messages=messages,
+                temperature=temp,
+                max_tokens=max_tokens,
+            )
+            raw = response.choices[0].message.content
 
         try:
             return _parse_json_response(raw, schema)
@@ -133,32 +188,26 @@ def call_llm_with_schema(
                     f"LLM schema validation failed after {max_retries} attempts: {last_error}"
                 ) from exc
 
-    raise RuntimeError("Unreachable")  # placate type checker
+    raise RuntimeError("Unreachable")
 
 
 def _schema_description(schema: Type[BaseModel]) -> str:
-    """Generate a concise JSON schema description for the system prompt."""
     import json
     return json.dumps(schema.model_json_schema(), ensure_ascii=False, indent=2)
 
 
 def _parse_json_response(raw: str, schema: Type[T]) -> T:
-    """Extract JSON from LLM output and validate against schema."""
     import json
 
     text = raw.strip()
-    # Strip markdown fences if present
     if text.startswith("```"):
         lines = text.split("\n")
-        # Remove opening fence (may have language tag)
         if lines[0].startswith("```"):
             lines = lines[1:]
-        # Remove closing fence
         if lines and lines[-1].strip() == "```":
             lines = lines[:-1]
         text = "\n".join(lines).strip()
 
-    # Try to find JSON object boundaries
     start = text.find("{")
     end = text.rfind("}")
     if start != -1 and end != -1 and end > start:

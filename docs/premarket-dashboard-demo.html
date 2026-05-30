@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>盘前执行台 · 2026-05-30</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{display:['DM Serif Display','Noto Serif SC', 'serif'],sans:['IBM Plex Sans','PingFang SC','Microsoft YaHei','sans-serif'],mono:['IBM Plex Mono','SF Mono','Cascadia Code','monospace']}}}}</script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--red:#DC2626;--red-bg:#FEF2F2;--red-border:#FECACA;--red-text:#991B1B;
+    --green:#059669;--green-bg:#ECFDF5;--green-border:#A7F3D0;--green-text:#065F46;
+    --amber:#D97706;--amber-bg:#FFFBEB;--amber-border:#FDE68A;--amber-text:#92400E;
+    --blue:#2563EB;--blue-bg:#EFF6FF;--blue-border:#BFDBFE;--blue-text:#1E40AF;
+    --slate-50:#F8FAFC;--slate-100:#F1F5F9;--slate-200:#E2E8F0;--slate-300:#CBD5E1;
+    --slate-400:#94A3B8;--slate-500:#64748B;--slate-700:#334155;--slate-900:#0F172A;}
+  body{background:linear-gradient(175deg,var(--slate-50) 0%,#EEF2F7 40%,#F1F5F9 100%);min-height:100vh}
+  .card{background:#fff;border-radius:14px;border:1px solid var(--slate-200);box-shadow:0 1px 2px rgba(0,0,0,.03),0 4px 12px rgba(0,0,0,.04);transition:box-shadow .2s}
+  .card:hover{box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.06)}
+  .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:9999px;font-size:11.5px;font-weight:600;letter-spacing:.01em;white-space:nowrap}
+  .pill-red{background:var(--red-bg);color:var(--red-text);border:1px solid var(--red-border)}
+  .pill-green{background:var(--green-bg);color:var(--green-text);border:1px solid var(--green-border)}
+  .pill-amber{background:var(--amber-bg);color:var(--amber-text);border:1px solid var(--amber-border)}
+  .pill-blue{background:var(--blue-bg);color:var(--blue-text);border:1px solid var(--blue-border)}
+  .pill-gray{background:var(--slate-100);color:var(--slate-500);border:1px solid var(--slate-200)}
+  .table-row{cursor:pointer;transition:background .12s}
+  .table-row:hover{background:#F8FAFC}
+  .table-row-warn{border-left:3px solid var(--amber)}
+  .table-row-warn:hover{background:#FFFBF0}
+  .table-row-monitor{border-left:3px solid var(--blue)}
+  .table-row-monitor:hover{background:#F5F9FF}
+  .table-row-off{opacity:.45}
+  .detail-row{display:none}
+  .detail-row.open{display:table-row}
+  .detail-row td{background:#FAFBFC;border-bottom:2px solid var(--slate-200);padding:0}
+  .detail-inner{padding:16px 22px 18px 28px}
+  .check-row{display:flex;align-items:center;gap:7px;padding:3px 0;font-size:12.5px;color:var(--slate-700)}
+  .check-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--green);flex-shrink:0}
+  .check-row .auto-tag{font-size:9.5px;color:var(--slate-400);margin-left:4px;font-family:var(--font-mono)}
+  .fact-block{background:#fff;border-left:3px solid var(--slate-300);padding:6px 12px;border-radius:0 5px 5px 0;margin-bottom:4px;font-size:12.5px;color:var(--slate-900)}
+  .interp-block{background:var(--slate-50);border-left:3px solid var(--slate-400);padding:6px 12px;border-radius:0 5px 5px 0;margin-bottom:4px;font-size:12.5px;color:var(--slate-700)}
+  .action-block{background:var(--amber-bg);border-left:3px solid var(--amber);padding:6px 12px;border-radius:0 5px 5px 0;margin-bottom:4px;font-size:12.5px;color:var(--amber-text)}
+  .chain-path{font-size:11.5px;color:var(--slate-500);background:var(--slate-50);border:1px solid var(--slate-200);border-radius:7px;padding:8px 14px;margin:8px 0}
+  .progress-bar{height:6px;background:var(--slate-100);border-radius:3px;overflow:hidden}
+  .progress-bar .fill{height:100%;border-radius:3px;transition:width .3s}
+  .fill-red{background:linear-gradient(90deg,#EF4444,#F87171)}
+  .fill-amber{background:linear-gradient(90deg,#F59E0B,#FBBF24)}
+  .fill-green{background:linear-gradient(90deg,#10B981,#34D399)}
+  .fill-blue{background:linear-gradient(90deg,#3B82F6,#60A5FA)}
+  .alert-critical{border-left:4px solid var(--red);background:linear-gradient(90deg,var(--red-bg),transparent 30%)}
+  .alert-warning{border-left:4px solid var(--amber);background:linear-gradient(90deg,var(--amber-bg),transparent 30%)}
+  .alert-data{border-left:4px solid var(--slate-300)}
+  .code-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--slate-500);background:var(--slate-100);padding:1px 6px;border-radius:4px}
+  .collapse-content{overflow:hidden;transition:max-height .35s ease}
+  .dq-badge{font-size:9.5px;padding:2px 7px;border-radius:4px;font-weight:600;white-space:nowrap}
+  .dq-verified{background:var(--green-bg);color:var(--green-text);border:1px solid var(--green-border)}
+  .dq-mock{background:var(--slate-100);color:var(--slate-500);border:1px solid var(--slate-200)}
+  .dq-stale{background:var(--red-bg);color:var(--red-text);border:1px solid var(--red-border)}
+  .dq-manual{background:var(--blue-bg);color:var(--blue-text);border:1px solid var(--blue-border)}
+  .dq-unverified{background:var(--amber-bg);color:var(--amber-text);border:1px solid var(--amber-border)}
+  .chevron{transition:transform .3s ease}
+  .chevron.open{transform:rotate(180deg)}
+  @media(max-width:768px){.detail-inner{padding:12px 14px 14px 18px}}
+</style>
+</head>
+<body class="font-sans text-slate-700 antialiased">
+
+<!-- Topbar -->
+<header class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+  <div class="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
+    <div class="flex items-baseline gap-3">
+      <h1 class="font-display text-lg text-slate-900 tracking-wide">盘前执行台</h1>
+      <span class="text-sm text-slate-500 font-medium">2026-05-30 · 周六</span>
+    </div>
+    <div class="flex gap-2 text-xs font-semibold">
+      <span class="pill pill-gray">今日非交易日</span>
+      <span class="pill pill-green">6/1 可执行 0</span>
+      <span class="pill pill-amber">待确认 2</span>
+      <span class="pill pill-blue">仅监控 4</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-5 md:px-8 py-6 space-y-6">
+
+<!-- Data Quality Bar -->
+<div class="card px-5 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-slate-500">
+  <span class="font-semibold text-slate-700 text-sm">数据质量</span>
+  <span><span class="dq-badge dq-verified">已核验</span> LPR 3.50%、持仓 5/29 收盘、告警/违规/止损 DB 数据</span>
+  <span><span class="dq-badge dq-mock">mock</span> 外部环境（PMI/行业新闻等）— 不进入执行判断</span>
+  <span><span class="dq-badge dq-stale">残留</span> 铀业/老窖已清算但告警仍在 DB</span>
+  <span class="text-slate-400 ml-auto">portfolio.db 5/29 收盘 + 公开核验</span>
+</div>
+
+<!-- ══════ ① Operation Confirm Sheet ══════ -->
+<section>
+  <div class="flex items-center gap-3 mb-4">
+    <h2 class="font-display text-lg text-slate-900">下个交易日操作确认单</h2>
+    <span class="text-xs text-slate-500 font-medium">— 6/1 周一预判，今日为非交易日</span>
+  </div>
+
+  <div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+        <th class="text-left py-3 px-3 w-[72px]">今日</th>
+        <th class="text-left py-3 px-2 w-[82px]">6/1 预判</th>
+        <th class="text-left py-3 px-2 w-[150px]">标的</th>
+        <th class="text-left py-3 px-1 w-[38px]">方向</th>
+        <th class="text-left py-3 px-2 w-[82px]">数量</th>
+        <th class="text-left py-3 px-2 w-[140px]">估金额</th>
+        <th class="text-left py-3 px-3">原因 &amp; 条件</th>
+        <th class="text-left py-3 px-2 w-[105px]">执行后</th>
+        <th class="py-3 px-1 w-[22px]"></th>
+      </tr>
+    </thead>
+    <tbody>
+
+<!-- C-003 -->
+<tr class="table-row table-row-warn" onclick="toggleRow(this)" id="r-C003">
+  <td class="py-3 px-3"><span class="pill pill-gray">非交易日</span><div class="text-[10px] text-slate-400 mt-1">今日不执行</div></td>
+  <td class="py-3 px-2"><span class="pill pill-amber">待确认</span></td>
+  <td class="py-3 px-2"><span class="font-semibold text-slate-900">隆基绿能</span><span class="code-tag block mt-0.5">601012.SH</span></td>
+  <td class="py-3 px-1"><span class="pill pill-red">卖出</span></td>
+  <td class="py-3 px-2 font-mono text-slate-900">2,400 股</td>
+  <td class="py-3 px-2"><span class="font-mono font-semibold text-slate-900">¥33,336</span><div class="text-[11px] text-slate-400 mt-0.5">估 ¥13.89 · 5/29</div></td>
+  <td class="py-3 px-3">清仓低分 thesis 标的<div class="text-[11px] text-slate-400 mt-0.5">C-003 · c_restructure</div></td>
+  <td class="py-3 px-2 text-xs">C 档 7.3%→0%<div class="text-slate-400">回笼 ¥3.3万</div></td>
+  <td class="py-3 px-1 text-slate-400"><i data-lucide="chevron-down" class="w-4 h-4 chevron"></i></td>
+</tr>
+<tr class="detail-row" id="d-C003"><td colspan="9"><div class="detail-inner">
+  <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">6/1 开盘前需确认</h4>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 mb-4">
+    <label class="check-row"><input type="checkbox">标的无停牌<span class="auto-tag">auto</span></label>
+    <label class="check-row"><input type="checkbox">无涨跌停限制<span class="auto-tag">auto</span></label>
+    <label class="check-row"><input type="checkbox"><span class="text-amber-700">确认无重大未消化公告</span><span class="dq-badge dq-manual ml-1">人工</span></label>
+    <label class="check-row"><input type="checkbox">开盘价 ±3% (¥13.47–14.31)<span class="auto-tag">auto</span></label>
+    <label class="check-row"><input type="checkbox" checked><span class="text-green-700">持仓充足 (2,400 股)</span><span class="auto-tag">auto</span></label>
+    <label class="check-row"><input type="checkbox" checked><span class="text-green-700">最小交易单位 (100 股)</span><span class="auto-tag">auto</span></label>
+    <label class="check-row"><input type="checkbox" checked><span class="text-green-700">卖出冷静期已过</span><span class="auto-tag">auto</span></label>
+  </div>
+  <div class="action-block">[动作] 清仓计划不变（组合纪律：主题集中整改），确认条件后执行。清仓逻辑为组合纪律，非 thesis 完全证伪。</div>
+  <div class="chain-path">合规整改（主题集中） → C仓位重组 → C-003 隆基清仓</div>
+</div></td></tr>
+
+<!-- C-002 -->
+<tr class="table-row table-row-warn" onclick="toggleRow(this)" id="r-C002">
+  <td class="py-3 px-3"><span class="pill pill-gray">非交易日</span><div class="text-[10px] text-slate-400 mt-1">今日不执行</div></td>
+  <td class="py-3 px-2"><span class="pill pill-amber">待确认</span></td>
+  <td class="py-3 px-2"><span class="font-semibold text-slate-900">理想汽车-W</span><span class="code-tag block mt-0.5">02015.HK</span></td>
+  <td class="py-3 px-1"><span class="pill pill-red">卖出</span></td>
+  <td class="py-3 px-2 font-mono text-slate-900">1,200 股</td>
+  <td class="py-3 px-2"><span class="font-mono font-semibold text-slate-900">HK$69,420</span><div class="text-[11px] text-slate-400 mt-0.5">估 HK$57.85 · 5/29</div><div class="text-[11px] text-amber-600 mt-0.5">⚠ 折约 ¥63,800</div></td>
+  <td class="py-3 px-3">等待 Q1 财报后执行<div class="text-[11px] text-slate-400 mt-0.5">C-002 · c_restructure</div></td>
+  <td class="py-3 px-2 text-xs">C 档 13.9%→0%<div class="text-slate-400">最大单笔</div></td>
+  <td class="py-3 px-1 text-slate-400"><i data-lucide="chevron-down" class="w-4 h-4 chevron"></i></td>
+</tr>
+<tr class="detail-row" id="d-C002"><td colspan="9"><div class="detail-inner">
+  <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">币种与汇率</h4>
+  <table class="text-xs w-full mb-3">
+    <tr><td class="w-28 text-slate-400 py-1">原币市值</td><td class="text-slate-900">HK$69,420（1,200 × HK$57.85）</td></tr>
+    <tr><td class="text-slate-400 py-1">汇率</td><td>HKD/CNY ≈ 0.919（5/29 参考）<span class="dq-badge dq-mock ml-1">mock</span></td></tr>
+    <tr><td class="text-slate-400 py-1">折人民币</td><td class="text-slate-900">≈ ¥63,800（组合基准 CNY）</td></tr>
+  </table>
+  <div class="fact-block">[事实] Q1 财报状态：待发布 · thesis 评分 2.8/5</div>
+  <div class="interp-block">[解读] 若 Q1 无重大利好 → 按计划清仓。若财报超预期 → 重新评估 thesis。</div>
+  <div class="action-block">[动作] 6/1 不可执行。等待 Q1 财报后根据数据决策。</div>
+  <div class="text-[11px] text-red-600 mt-2">⚠ 港股 02015.HK，币种港币，确认港股交易权限。执行前以实时汇率换算。</div>
+  <div class="chain-path mt-2">合规整改（主题集中） → C仓位重组 → C-002 理想清仓</div>
+</div></td></tr>
+
+<!-- C-006 -->
+<tr class="table-row table-row-monitor" onclick="toggleRow(this)" id="r-C006">
+  <td class="py-3 px-3"><span class="pill pill-gray">非交易日</span><div class="text-[10px] text-slate-400 mt-1">今日不执行</div></td>
+  <td class="py-3 px-2"><span class="pill pill-blue">仅监控</span></td>
+  <td class="py-3 px-2"><span class="font-semibold text-slate-900">南山铝业</span><span class="code-tag block mt-0.5">600219.SH</span></td>
+  <td class="py-3 px-1"><span class="pill pill-red">卖出</span></td>
+  <td class="py-3 px-2 font-mono text-slate-900">4×6,150 股</td>
+  <td class="py-3 px-2"><span class="font-mono font-semibold text-slate-900">均价 ¥6.60</span><div class="text-[11px] text-slate-400 mt-0.5">当前 ¥5.20 未触发</div></td>
+  <td class="py-3 px-3">价格触发减仓<div class="text-[11px] text-slate-400 mt-0.5">C-006 · 合规 · stop #1–4</div></td>
+  <td class="py-3 px-2 text-xs">C 档 52.6%<br>→ ≤25%</td>
+  <td class="py-3 px-1 text-slate-400"><i data-lucide="chevron-down" class="w-4 h-4 chevron"></i></td>
+</tr>
+<tr class="detail-row" id="d-C006"><td colspan="9"><div class="detail-inner">
+  <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">触发价表（全部 armed）</h4>
+  <table class="text-xs w-full">
+    <tr class="bg-slate-50"><td class="p-2 text-slate-400">#1</td><td class="p-2 font-mono text-slate-900">≥¥5.81</td><td class="p-2">6,150 股</td><td class="p-2 text-slate-400">未触发 (+11.7%)</td></tr>
+    <tr><td class="p-2 text-slate-400">#2</td><td class="p-2 font-mono text-slate-900">≥¥6.34</td><td class="p-2">6,150 股</td><td class="p-2 text-slate-400">未触发</td></tr>
+    <tr class="bg-slate-50"><td class="p-2 text-slate-400">#3</td><td class="p-2 font-mono text-slate-900">≥¥6.86</td><td class="p-2">6,150 股</td><td class="p-2 text-slate-400">未触发</td></tr>
+    <tr><td class="p-2 text-slate-400">#4</td><td class="p-2 font-mono text-slate-900">≥¥7.39</td><td class="p-2">6,150 股</td><td class="p-2 text-slate-400">未触发</td></tr>
+  </table>
+  <div class="text-[11px] text-slate-400 mt-2">另：网格买入 ¥4.80/4.40/4.00 · Hard DD @ −35%（均未触发）</div>
+  <div class="chain-path mt-2">合规整改（单股超限 52.6%→25%） → C-006 第二档分批</div>
+</div></td></tr>
+
+<!-- C-005 -->
+<tr class="table-row table-row-monitor" onclick="toggleRow(this)" id="r-C005">
+  <td class="py-3 px-3"><span class="pill pill-gray">非交易日</span><div class="text-[10px] text-slate-400 mt-1">今日不执行</div></td>
+  <td class="py-3 px-2"><span class="pill pill-blue">仅监控</span></td>
+  <td class="py-3 px-2"><span class="font-semibold text-slate-900">比亚迪</span><span class="code-tag block mt-0.5">002594.SZ</span></td>
+  <td class="py-3 px-1"><span class="pill pill-red">减仓</span></td>
+  <td class="py-3 px-2 font-mono text-slate-900">400 股</td>
+  <td class="py-3 px-2"><span class="font-mono font-semibold text-slate-900">¥38,472</span><div class="text-[11px] text-slate-400 mt-0.5">估 ¥96.18 · 5/29</div></td>
+  <td class="py-3 px-3">等待销量数据确认<div class="text-[11px] text-slate-400 mt-0.5">C-005 · c_restructure · thesis 3.2</div></td>
+  <td class="py-3 px-2 text-xs">C 档 16.7%<br>→ 5% 观察</td>
+  <td class="py-3 px-1 text-slate-400"><i data-lucide="chevron-down" class="w-4 h-4 chevron"></i></td>
+</tr>
+<tr class="detail-row" id="d-C005"><td colspan="9"><div class="detail-inner">
+  <div class="fact-block">[事实] 现持仓 800 股，成本 ¥111.57，现价 ¥96.18（5/29 收盘），PnL −13.79%</div>
+  <div class="interp-block">[解读] 减仓 400 股后剩余 400 股观察仓，预估回笼 ¥38,472。新能源龙头保留 5%。</div>
+  <div class="action-block">[动作] 6/1 盘前确认，建议等 5 月销量数据发布后再执行。</div>
+</div></td></tr>
+
+<!-- 562950 -->
+<tr class="table-row table-row-monitor" onclick="toggleRow(this)" id="r-562950">
+  <td class="py-3 px-3"><span class="pill pill-gray">非交易日</span><div class="text-[10px] text-slate-400 mt-1">今日不执行</div></td>
+  <td class="py-3 px-2"><span class="pill pill-blue">仅监控</span></td>
+  <td class="py-3 px-2"><span class="font-semibold text-slate-900">消费电子ETF</span><span class="code-tag block mt-0.5">562950.SH</span></td>
+  <td class="py-3 px-1"><span class="pill pill-red">止损</span></td>
+  <td class="py-3 px-2 font-mono text-slate-900">21,400 份</td>
+  <td class="py-3 px-2"><span class="font-mono font-semibold text-red-600">止损 ¥1.77</span><div class="text-[11px] text-slate-400 mt-0.5">当前 ¥1.781</div><div class="text-[11px] text-red-500 mt-0.5">距触发 −0.6%</div></td>
+  <td class="py-3 px-3">C 档战术配置，已 arm<div class="text-[11px] text-slate-400 mt-0.5">stop_rule #17 · STOP_LOSS</div></td>
+  <td class="py-3 px-2 text-xs">C 档 8.4%<br>→ 0%</td>
+  <td class="py-3 px-1 text-slate-400"><i data-lucide="chevron-down" class="w-4 h-4 chevron"></i></td>
+</tr>
+<tr class="detail-row" id="d-562950"><td colspan="9"><div class="detail-inner">
+  <div class="fact-block">[事实] 持仓 21,400 份，成本 ¥1.863，现价 ¥1.781，PnL −4.40%</div>
+  <div class="interp-block">[解读] C 档战术配置（科技硬件主题）。止损线 ¥1.77 距当前仅 −0.6%，开盘后可能快速触发。</div>
+  <div class="action-block">[动作] 6/1 开盘密切关注。触发止损 → trade log 卖出 → 资金 70%B/30%A。</div>
+</div></td></tr>
+
+<!-- A500 -->
+<tr class="table-row table-row-monitor" onclick="toggleRow(this)" id="r-A500">
+  <td class="py-3 px-3"><span class="pill pill-gray">非交易日</span><div class="text-[10px] text-slate-400 mt-1">今日不执行</div></td>
+  <td class="py-3 px-2"><span class="pill pill-blue">仅监控</span></td>
+  <td class="py-3 px-2"><span class="font-semibold text-slate-900">中证A500</span><span class="code-tag block mt-0.5">563360.SH</span></td>
+  <td class="py-3 px-1"><span class="pill pill-blue">定投</span></td>
+  <td class="py-3 px-2 text-slate-900">持续</td>
+  <td class="py-3 px-2"><span class="font-mono font-semibold text-slate-900">PE 97%</span><div class="text-[11px] text-slate-400 mt-0.5">条件 ≤60%</div><span class="dq-badge dq-mock mt-1">mock</span></td>
+  <td class="py-3 px-3">估值条件未满足<div class="text-[11px] text-slate-400 mt-0.5">B-P2-01 · Phase 2</div></td>
+  <td class="py-3 px-2 text-xs">已投 ¥29,686<div class="text-slate-400">超买修正中</div></td>
+  <td class="py-3 px-1 text-slate-400"><i data-lucide="chevron-down" class="w-4 h-4 chevron"></i></td>
+</tr>
+<tr class="detail-row" id="d-A500"><td colspan="9"><div class="detail-inner">
+  <div class="fact-block">[事实] 持仓 21,700 份，成本 ¥1.383，现价 ¥1.368，PnL −1.08%</div>
+  <div class="interp-block">[解读] PE 百分位 mock 数据，实盘需接入理杏仁/Wind。</div>
+  <div class="action-block">[动作] 6/1 不追加。待超买消化后恢复定投。</div>
+</div></td></tr>
+
+    </tbody>
+  </table>
+  </div>
+  </div>
+</section>
+
+<!-- ══════ ② 持仓快照 + 告警/合规 双栏 ══════ -->
+<div class="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+
+<!-- LEFT: 持仓快照 -->
+<section>
+  <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-3">
+      <h2 class="font-display text-lg text-slate-900">当前持仓快照</h2>
+      <span class="text-xs text-slate-500">5/29 收盘 · 基准 CNY</span>
+    </div>
+    <button onclick="document.getElementById('snap').classList.toggle('hidden');this.querySelector('i').classList.toggle('rotate-180')" class="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1 transition-colors">
+      <i data-lucide="chevron-down" class="w-4 h-4 transition-transform"></i> 收起
+    </button>
+  </div>
+
+  <div id="snap" class="card overflow-hidden">
+  <div class="overflow-x-auto">
+  <table class="w-full text-[13px]">
+    <thead>
+      <tr class="bg-slate-50 text-[10.5px] uppercase tracking-wider text-slate-500 font-semibold">
+        <th class="text-left py-2.5 px-3">标的</th><th class="text-left py-2.5 px-2">持仓量</th><th class="text-left py-2.5 px-2">成本价</th><th class="text-left py-2.5 px-2">最新价</th><th class="text-right py-2.5 px-2">原币市值</th><th class="text-right py-2.5 px-2">折 CNY</th><th class="text-right py-2.5 px-2">PnL%</th><th class="text-left py-2.5 px-2">占 C 档</th><th class="text-left py-2.5 px-2">占 ABC</th><th class="text-left py-2.5 px-1">档</th><th class="text-left py-2.5 px-2">状态</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+        <td class="py-2.5 px-3"><span class="font-semibold text-slate-900">比亚迪</span><span class="code-tag block mt-0.5">002594.SZ</span></td>
+        <td class="py-2.5 px-2 font-mono text-right">800</td><td class="py-2.5 px-2 font-mono text-right">¥111.57</td><td class="py-2.5 px-2 font-mono text-right">¥96.18</td>
+        <td class="py-2.5 px-2 font-mono text-right">¥76,944</td><td class="py-2.5 px-2 font-mono text-right">¥76,944</td>
+        <td class="py-2.5 px-2 font-mono text-right text-red-600">−13.8%</td>
+        <td class="py-2.5 px-2">16.7%</td><td class="py-2.5 px-2">6.5%</td><td class="py-2.5 px-1"><span class="pill pill-gray text-[10px]">C</span></td>
+        <td class="py-2.5 px-2 text-xs">待减仓</td>
+      </tr>
+      <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+        <td class="py-2.5 px-3"><span class="font-semibold text-slate-900">南山铝业</span><span class="code-tag block mt-0.5">600219.SH</span></td>
+        <td class="py-2.5 px-2 font-mono text-right">46,500</td><td class="py-2.5 px-2 font-mono text-right">¥6.71</td><td class="py-2.5 px-2 font-mono text-right">¥5.20</td>
+        <td class="py-2.5 px-2 font-mono text-right">¥241,800</td><td class="py-2.5 px-2 font-mono text-right">¥241,800</td>
+        <td class="py-2.5 px-2 font-mono text-right text-red-600">−22.5%</td>
+        <td class="py-2.5 px-2">52.6%</td><td class="py-2.5 px-2">20.5%</td><td class="py-2.5 px-1"><span class="pill pill-gray text-[10px]">C</span></td>
+        <td class="py-2.5 px-2 text-xs"><span class="pill pill-red text-[10px]">超标</span></td>
+      </tr>
+      <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+        <td class="py-2.5 px-3"><span class="font-semibold text-slate-900">理想汽车-W</span><span class="code-tag block mt-0.5">02015.HK</span></td>
+        <td class="py-2.5 px-2 font-mono text-right">1,200</td><td class="py-2.5 px-2 font-mono text-right">HK$63.41</td><td class="py-2.5 px-2 font-mono text-right">HK$57.85</td>
+        <td class="py-2.5 px-2 font-mono text-right">HK$69,420</td><td class="py-2.5 px-2 font-mono text-right text-amber-600">≈ ¥63,800</td>
+        <td class="py-2.5 px-2 font-mono text-right text-red-600">−8.8%</td>
+        <td class="py-2.5 px-2">13.9%</td><td class="py-2.5 px-2">5.4%</td><td class="py-2.5 px-1"><span class="pill pill-gray text-[10px]">C</span></td>
+        <td class="py-2.5 px-2 text-xs">等财报</td>
+      </tr>
+      <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+        <td class="py-2.5 px-3"><span class="font-semibold text-slate-900">消费电子ETF</span><span class="code-tag block mt-0.5">562950.SH</span></td>
+        <td class="py-2.5 px-2 font-mono text-right">21,400</td><td class="py-2.5 px-2 font-mono text-right">¥1.863</td><td class="py-2.5 px-2 font-mono text-right">¥1.781</td>
+        <td class="py-2.5 px-2 font-mono text-right">¥38,113</td><td class="py-2.5 px-2 font-mono text-right">¥38,113</td>
+        <td class="py-2.5 px-2 font-mono text-right text-red-600">−4.4%</td>
+        <td class="py-2.5 px-2">8.4%</td><td class="py-2.5 px-2">3.3%</td><td class="py-2.5 px-1"><span class="pill pill-gray text-[10px]">C</span></td>
+        <td class="py-2.5 px-2 text-xs"><span class="pill pill-red text-[10px]">止损监控</span></td>
+      </tr>
+      <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+        <td class="py-2.5 px-3"><span class="font-semibold text-slate-900">隆基绿能</span><span class="code-tag block mt-0.5">601012.SH</span></td>
+        <td class="py-2.5 px-2 font-mono text-right">2,400</td><td class="py-2.5 px-2 font-mono text-right">¥19.12</td><td class="py-2.5 px-2 font-mono text-right">¥13.89</td>
+        <td class="py-2.5 px-2 font-mono text-right">¥33,336</td><td class="py-2.5 px-2 font-mono text-right">¥33,336</td>
+        <td class="py-2.5 px-2 font-mono text-right text-red-600">−27.4%</td>
+        <td class="py-2.5 px-2">7.3%</td><td class="py-2.5 px-2">2.9%</td><td class="py-2.5 px-1"><span class="pill pill-gray text-[10px]">C</span></td>
+        <td class="py-2.5 px-2 text-xs">待清仓</td>
+      </tr>
+      <tr class="bg-slate-50 font-semibold">
+        <td class="py-2.5 px-3 text-slate-900">C 档合计</td><td></td><td></td><td></td><td></td><td class="py-2.5 px-2 font-mono text-right">≈ ¥454,000</td><td></td><td></td><td class="py-2.5 px-2">≈ 38.7%</td><td></td><td></td>
+      </tr>
+      <tr class="border-t-2 border-slate-200"><td class="py-2 px-3 font-semibold text-slate-700 text-xs uppercase tracking-wider" colspan="11">B 档 ETF</td></tr>
+      <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+        <td class="py-2.5 px-3"><span class="font-semibold text-slate-900">纳指100 ETF</span><span class="code-tag block mt-0.5">159941.SZ</span></td>
+        <td class="py-2.5 px-2 font-mono text-right">66,500</td><td class="py-2.5 px-2 font-mono text-right">¥1.380</td><td class="py-2.5 px-2 font-mono text-right">¥1.694</td>
+        <td class="py-2.5 px-2 font-mono text-right">¥112,651</td><td class="py-2.5 px-2 font-mono text-right">¥112,651</td>
+        <td class="py-2.5 px-2 font-mono text-right text-green-600">+22.8%</td>
+        <td>—</td><td>9.6%</td><td class="py-2.5 px-1"><span class="pill pill-blue text-[10px]">B</span></td>
+        <td class="text-xs">出清中</td>
+      </tr>
+      <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+        <td class="py-2.5 px-3"><span class="font-semibold text-slate-900">恒生科技 ETF</span><span class="code-tag block mt-0.5">513010.SH</span></td>
+        <td class="py-2.5 px-2 font-mono text-right">17,300</td><td class="py-2.5 px-2 font-mono text-right">¥0.649</td><td class="py-2.5 px-2 font-mono text-right">¥0.639</td>
+        <td class="py-2.5 px-2 font-mono text-right">¥11,055</td><td class="py-2.5 px-2 font-mono text-right">¥11,055</td>
+        <td class="py-2.5 px-2 font-mono text-right text-red-600">−1.5%</td>
+        <td>—</td><td>0.9%</td><td class="py-2.5 px-1"><span class="pill pill-blue text-[10px]">B</span></td>
+        <td class="text-xs">建仓中</td>
+      </tr>
+      <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+        <td class="py-2.5 px-3"><span class="font-semibold text-slate-900">中证A500 ETF</span><span class="code-tag block mt-0.5">563360.SH</span></td>
+        <td class="py-2.5 px-2 font-mono text-right">21,700</td><td class="py-2.5 px-2 font-mono text-right">¥1.383</td><td class="py-2.5 px-2 font-mono text-right">¥1.368</td>
+        <td class="py-2.5 px-2 font-mono text-right">¥29,686</td><td class="py-2.5 px-2 font-mono text-right">¥29,686</td>
+        <td class="py-2.5 px-2 font-mono text-right text-red-600">−1.1%</td>
+        <td>—</td><td>2.5%</td><td class="py-2.5 px-1"><span class="pill pill-blue text-[10px]">B</span></td>
+        <td class="text-xs">超买</td>
+      </tr>
+      <tr class="bg-slate-50 font-semibold">
+        <td class="py-2.5 px-3 text-slate-900">B 档合计</td><td></td><td></td><td></td><td></td><td class="py-2.5 px-2 font-mono text-right">¥153,391</td><td></td><td></td><td class="py-2.5 px-2">13.1%</td><td></td><td></td>
+      </tr>
+      <tr class="border-t-2 border-slate-200"><td class="py-2 px-3 font-semibold text-slate-700 text-xs uppercase tracking-wider" colspan="11">A 档</td></tr>
+      <tr class="border-b border-slate-100">
+        <td class="py-2.5 px-3 text-slate-900">活期 + 债券</td><td></td><td></td><td></td><td></td><td class="py-2.5 px-2 font-mono text-right">¥567,023</td><td></td><td></td><td class="py-2.5 px-2">48.3%</td><td class="py-2.5 px-1"><span class="pill pill-green text-[10px]">A</span></td><td></td>
+      </tr>
+      <tr class="bg-slate-100 font-semibold">
+        <td class="py-2.5 px-3 text-slate-900">ABC 合计 (CNY)</td><td></td><td></td><td></td><td></td><td class="py-2.5 px-2 font-mono text-right">≈ ¥1,174,000</td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr><td class="py-1.5 px-3 text-[10px] text-slate-400 font-mono" colspan="11">理想 HKD→CNY 0.919 mock，实盘以当日汇率为准</td></tr>
+    </tbody>
+  </table>
+  </div>
+  </div>
+</section>
+
+<!-- RIGHT: Alerts + Compliance + Thesis -->
+<aside class="space-y-5">
+
+  <!-- Active Risk Alerts -->
+  <div class="card p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-display text-base text-slate-900">活跃风险告警</h3>
+      <div class="flex gap-2 text-[11px] font-semibold">
+        <span class="pill pill-red">2 Critical</span>
+        <span class="pill pill-amber">3 Warning</span>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <div class="rounded-lg alert-critical p-3.5 cursor-pointer" onclick="this.classList.toggle('expanded')">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,.4)] flex-shrink-0"></span>
+          <span class="text-xs font-semibold text-red-800">单股超限</span>
+          <span class="code-tag text-[10px]">600219.SH</span>
+          <span class="flex-1 text-xs text-red-700 truncate">南山铝业占 C 档 52.6%</span>
+          <span class="pill pill-amber text-[10px]">处理中</span>
+        </div>
+        <div class="text-[11px] text-red-600/70 mt-2 pl-5 hidden expanded-block">
+          关联：C-006 grid sell 4 批 armed · 截止 6/22<br>动作：等待价格触发或手动调整<br><span class="text-red-400">DB 记录 current_value=45.16%（历史快照），当前实际 52.6%</span>
+          <div class="progress-bar mt-1.5"><div class="fill fill-red" style="width:30%"></div></div>
+          <div class="text-[10px] text-red-400 mt-0.5">完成度 ~30% · 剩余 23 天</div>
+        </div>
+      </div>
+
+      <div class="rounded-lg alert-critical p-3.5 cursor-pointer" onclick="this.classList.toggle('expanded')">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,.4)] flex-shrink-0"></span>
+          <span class="text-xs font-semibold text-red-800">单股超限</span>
+          <span class="code-tag text-[10px]">02015.HK</span>
+          <span class="flex-1 text-xs text-red-700 truncate">理想汽车 DB 记录仓位 25.81%</span>
+          <span class="pill pill-red text-[10px]">待核实</span>
+        </div>
+        <div class="text-[11px] text-red-600/70 mt-2 pl-5 hidden expanded-block">
+          DB 告警显示仓位 25.81% 超 25% 阈值（可能为历史快照或未换算 HKD 口径）。<br>当前折 CNY 占 C 档 13.9%，未超 25%。建议核实 DB 告警口径后更新或归档。
+        </div>
+      </div>
+
+      <div class="rounded-lg alert-warning p-3.5 cursor-pointer" onclick="this.classList.toggle('expanded')">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></span>
+          <span class="text-xs font-semibold text-amber-800">L2 回撤</span>
+          <span class="code-tag text-[10px]">601012.SH</span>
+          <span class="flex-1 text-xs text-amber-700 truncate">隆基 −27.35%</span>
+          <span class="pill pill-red text-[10px]">待 thesis</span>
+        </div>
+        <div class="text-[11px] text-amber-600/70 mt-2 pl-5 hidden expanded-block">
+          关联：C-003 待确认清仓、T-002 thesis 截止 6/1<br>动作：T-002 按模板完成
+        </div>
+      </div>
+
+      <div class="rounded-lg alert-warning p-3.5 cursor-pointer" onclick="this.classList.toggle('expanded')">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></span>
+          <span class="text-xs font-semibold text-amber-800">L2 回撤</span>
+          <span class="code-tag text-[10px]">600219.SH</span>
+          <span class="flex-1 text-xs text-amber-700 truncate">南山 −22.50%</span>
+          <span class="pill pill-red text-[10px]">待 thesis</span>
+        </div>
+        <div class="text-[11px] text-amber-600/70 mt-2 pl-5 hidden expanded-block">
+          关联：T-003 thesis 截止 6/1<br>动作：减仓为纪律驱动，非 thesis 证伪
+        </div>
+      </div>
+
+      <div class="rounded-lg alert-warning p-3.5 cursor-pointer opacity-60">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2 h-2 rounded-full bg-amber-300 flex-shrink-0"></span>
+          <span class="text-xs font-semibold text-amber-700">L2 回撤</span>
+          <span class="code-tag text-[10px]">001280.SZ</span>
+          <span class="flex-1 text-xs text-amber-600 truncate">中国铀业 · 已于 5/26 清仓</span>
+          <span class="pill pill-gray text-[10px]">已清算</span>
+        </div>
+        <div class="text-[11px] text-amber-500/70 mt-2 pl-5 hidden expanded-block">
+          DB 中仍有 L2 回撤告警记录。标的已于 5/26 清仓，建议归档此告警。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compliance Progress -->
+  <div class="card p-5">
+    <h3 class="font-display text-base text-slate-900 mb-4">合规整改进度</h3>
+    <div class="space-y-4">
+      <div>
+        <div class="flex justify-between text-xs mb-1.5"><span class="font-semibold text-slate-700">单股超限 · 600219</span><span class="text-red-600 font-mono">52.6% → 25%</span></div>
+        <div class="progress-bar"><div class="fill fill-red" style="width:30%"></div></div>
+        <div class="text-[10px] text-slate-400 mt-1">截止 6/22 · 23 天 · C-006 grid sell · DB 记录 45.16%（旧快照）</div>
+      </div>
+      <div>
+        <div class="flex justify-between text-xs mb-1.5"><span class="font-semibold text-slate-700">C 档超配</span><span class="text-amber-600 font-mono">38.7% → 30%</span></div>
+        <div class="progress-bar"><div class="fill fill-amber" style="width:45%"></div></div>
+        <div class="text-[10px] text-slate-400 mt-1">截止 6/22 · 清仓理想+隆基+减仓比亚迪+南山 · DB 记录 48.38%（旧快照）</div>
+      </div>
+      <div>
+        <div class="flex justify-between text-xs mb-1.5"><span class="font-semibold text-slate-700">主题集中 · 新能源链</span><span class="text-red-600 font-mono">84.2% → 35%</span></div>
+        <div class="progress-bar"><div class="fill fill-amber" style="width:55%"></div></div>
+        <div class="text-[10px] text-slate-400 mt-1">截止 8/24 · 87 天 · 归因：南山 52.6%+比亚迪 16.7%+理想 13.9%+隆基 7.3%+铀业✅</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Thesis Maintenance -->
+  <div class="card p-5">
+    <h3 class="font-display text-base text-slate-900 mb-3">Thesis 维护 <span class="text-xs font-medium text-red-500 ml-1">截止 6/1 · 2天</span></h3>
+    <div class="space-y-3 text-xs">
+      <div class="p-2.5 rounded-lg bg-slate-50">
+        <div class="font-semibold text-slate-800 mb-1">隆基绿能 601012.SH · T-002</div>
+        <div class="text-slate-500 leading-relaxed">验证：<span class="text-amber-600">部分被削弱</span> · 决策：<span class="text-red-600 font-semibold">清仓</span></div>
+        <div class="text-slate-400 mt-0.5">回撤 −27.35% · 下次复盘 6/30</div>
+      </div>
+      <div class="p-2.5 rounded-lg bg-slate-50">
+        <div class="font-semibold text-slate-800 mb-1">南山铝业 600219.SH · T-003</div>
+        <div class="text-slate-500 leading-relaxed">验证：<span class="text-amber-600">部分被削弱</span> · 决策：<span class="font-semibold">分批减至 25%</span></div>
+        <div class="text-slate-400 mt-0.5">回撤 −22.50% · 下次复盘 6/30</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Quality Alert -->
+  <div class="card p-5">
+    <h3 class="font-display text-base text-slate-900 mb-3">数据质量告警 <span class="text-xs font-medium text-slate-400 ml-1">3 项</span></h3>
+    <div class="space-y-2">
+      <div class="rounded-lg alert-data p-3 text-xs">
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="pill pill-gray text-[10px]">口径待核实</span>
+          <span class="code-tag text-[10px]">02015.HK</span>
+        </div>
+        <p class="text-slate-500 leading-relaxed">理想汽车 DB critical 告警（仓位 25.81%），但当前折 CNY 占 C 档 13.9% 未超 25%。疑为 DB 未换算 HKD 口径或历史快照。</p>
+      </div>
+      <div class="rounded-lg alert-data p-3 text-xs">
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="pill pill-gray text-[10px]">已清算残留</span>
+          <span class="code-tag text-[10px]">001280.SZ</span>
+        </div>
+        <p class="text-slate-500 leading-relaxed">中国铀业 L2 回撤 warning 告警仍存在于 DB。已于 5/26 清仓，建议确认后归档。</p>
+      </div>
+      <div class="rounded-lg alert-data p-3 text-xs">
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="pill pill-gray text-[10px]">已清算残留</span>
+          <span class="code-tag text-[10px]">000568.SZ</span>
+        </div>
+        <p class="text-slate-500 leading-relaxed">泸州老窖 L1 回撤 info 告警仍存在于 DB。已于 5/29 清仓（shares=0），建议确认后归档。</p>
+      </div>
+    </div>
+  </div>
+
+</aside>
+</div>
+
+<!-- ══════ ③ External Monitor ══════ -->
+<section class="card p-5">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="font-display text-lg text-slate-900">外部环境监控</h2>
+    <span class="text-xs text-slate-400">全部 mock，不进入执行判断</span>
+  </div>
+
+  <div class="space-y-4">
+    <!-- Macro -->
+    <div class="border border-slate-200 rounded-xl overflow-hidden">
+      <button onclick="this.parentElement.classList.toggle('open')" class="w-full flex items-center gap-3 px-5 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left">
+        <span class="font-semibold text-sm text-slate-800">宏观共享层</span>
+        <i data-lucide="chevron-down" class="w-4 h-4 ml-auto text-slate-400 chevron"></i>
+      </button>
+      <div class="collapse-content" style="max-height:0">
+        <div class="px-5 py-4 text-sm">
+          <table class="w-full text-xs mb-4">
+            <thead><tr class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500"><th class="p-2 text-left">数据项</th><th class="p-2 text-left">当前值</th><th class="p-2 text-left">时间</th><th class="p-2 text-left">来源</th><th class="p-2 text-left">可信</th><th class="p-2 text-left">状态</th><th class="p-2 text-left">入执行</th></tr></thead>
+            <tbody>
+              <tr class="border-b border-slate-100"><td class="p-2">LPR 5年期</td><td class="p-2 font-mono font-semibold">3.50%</td><td class="p-2">5/20</td><td class="p-2"><a href="https://www.bankofchina.com/fimarkets/lilv/fd32/201310/t20131031_2591219.html" target="_blank" class="text-blue-600 hover:underline">BOC LPR</a></td><td class="p-2"><span class="pill pill-green text-[10px]">A</span></td><td class="p-2"><span class="dq-badge dq-verified">已核验</span></td><td class="p-2"><span class="text-green-600 font-semibold text-xs">是</span></td></tr>
+              <tr class="border-b border-slate-100"><td class="p-2">PMI 5月</td><td class="p-2 text-amber-600">待发布</td><td class="p-2">—</td><td class="p-2"><a href="https://www.stats.gov.cn" target="_blank" class="text-blue-600 hover:underline">统计局</a></td><td class="p-2"><span class="pill pill-green text-[10px]">A</span></td><td class="p-2"><span class="dq-badge dq-unverified">待发布</span></td><td class="p-2 text-red-500 text-xs">否</td></tr>
+              <tr><td class="p-2">北向资金</td><td class="p-2 text-slate-400">demo</td><td class="p-2">demo</td><td class="p-2">沪深港通</td><td class="p-2"><span class="pill pill-green text-[10px]">A</span></td><td class="p-2"><span class="dq-badge dq-mock">mock</span></td><td class="p-2 text-red-500 text-xs">否</td></tr>
+            </tbody>
+          </table>
+          <div class="interp-block">[解读] LPR 3.50% 持平，红利策略股债息差 1.7pp。PMI 待官方发布。其余 mock 占位。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stock signals -->
+    <div class="border border-slate-200 rounded-xl overflow-hidden">
+      <button onclick="this.parentElement.classList.toggle('open')" class="w-full flex items-center gap-3 px-5 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left">
+        <span class="font-semibold text-sm text-slate-800">比亚迪 002594 · 南山铝业 600219 · 隆基绿能 601012</span>
+        <i data-lucide="chevron-down" class="w-4 h-4 ml-auto text-slate-400 chevron"></i>
+      </button>
+      <div class="collapse-content" style="max-height:0">
+        <div class="px-5 py-4 text-sm">
+          <table class="w-full text-xs mb-4">
+            <thead><tr class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500"><th class="p-2 text-left">标的</th><th class="p-2 text-left">监控项</th><th class="p-2 text-left">当前值</th><th class="p-2 text-left">来源</th><th class="p-2 text-left">状态</th><th class="p-2 text-left">入执行</th></tr></thead>
+            <tbody>
+              <tr class="border-b border-slate-100"><td class="p-2 font-mono">002594</td><td class="p-2">5月销量</td><td class="p-2 text-amber-600">待发布</td><td class="p-2">公司公告</td><td class="p-2"><span class="dq-badge dq-unverified">待发布</span></td><td class="p-2 text-red-500 text-xs">否</td></tr>
+              <tr class="border-b border-slate-100"><td class="p-2 font-mono">002594</td><td class="p-2">碳酸锂价格</td><td class="p-2 text-slate-400">demo</td><td class="p-2">生意社</td><td class="p-2"><span class="dq-badge dq-mock">mock</span></td><td class="p-2 text-red-500 text-xs">否</td></tr>
+              <tr class="border-b border-slate-100"><td class="p-2 font-mono">600219</td><td class="p-2">LME 铝价</td><td class="p-2 text-slate-400">demo</td><td class="p-2">LME</td><td class="p-2"><span class="dq-badge dq-mock">mock</span></td><td class="p-2 text-red-500 text-xs">否</td></tr>
+              <tr><td class="p-2 font-mono">601012</td><td class="p-2">组件集采价格</td><td class="p-2 text-slate-400">demo</td><td class="p-2">索比光伏网</td><td class="p-2"><span class="dq-badge dq-mock">mock</span></td><td class="p-2 text-red-500 text-xs">否</td></tr>
+            </tbody>
+          </table>
+          <div class="interp-block">[解读] 两标的均为组合纪律驱动操作，外部环境变化不改当前计划。比亚迪销量为 C-005 关键变量。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LLM Summary -->
+  <div class="mt-4 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-5 text-sm">
+    <div class="text-[10px] font-semibold text-blue-500 uppercase tracking-widest mb-3 font-mono">LLM 摘要</div>
+    <div class="flex flex-wrap gap-1.5 mb-3 text-[10px] text-slate-400 font-mono">
+      引用依据：<span class="bg-white px-2 py-0.5 rounded">LPR 3.50%</span><span class="bg-white px-2 py-0.5 rounded">portfolio.db 5/29</span><span class="bg-white px-2 py-0.5 rounded">stop_rules armed</span>
+    </div>
+    <p class="text-slate-700 mb-3"><strong class="text-slate-900">今日非交易日，无执行操作。6/1（周一）预判如下。</strong><br>置信度：<strong class="text-amber-600">低</strong>（外部环境几乎全 mock；仅持仓数据和 LPR 可信）</p>
+    <div class="space-y-1 text-slate-600">
+      <div><span class="text-amber-500 mr-1">●</span> 隆基清仓(C-003)：待确认停牌/公告/开盘价</div>
+      <div><span class="text-amber-500 mr-1">●</span> 理想清仓(C-002)：等待 Q1 财报</div>
+      <div><span class="text-amber-500 mr-1">●</span> 比亚迪减仓(C-005)：等销量数据</div>
+      <div><span class="text-red-500 mr-1">●</span> 消费电子ETF(562950)：距止损 −0.6%</div>
+      <div><span class="text-blue-500 mr-1">●</span> 南山铝业 C-006：最近触发 ¥5.81 (+11.7%)</div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="border-t border-slate-200 py-6 text-center text-[10px] text-slate-400 font-mono tracking-wide">
+  盘前投资执行台 · 2026-05-30 · v9 · portfolio.db 5/29 收盘 · 外部环境 mock
+</footer>
+
+<script>
+lucide.createIcons();
+
+// Accordion for collapsed sections
+document.querySelectorAll('.collapse-content').forEach(function(el){
+  var btn = el.parentElement.querySelector('button');
+  if(btn){
+    btn.addEventListener('click',function(){
+      var open = el.style.maxHeight !== '0px' && el.style.maxHeight !== '';
+      if(open){el.style.maxHeight='0';btn.querySelector('.chevron').classList.remove('open')}
+      else{el.style.maxHeight=el.scrollHeight+'px';btn.querySelector('.chevron').classList.add('open')}
+    });
+    btn.parentElement.classList.add('open');el.style.maxHeight=el.scrollHeight+'px';btn.querySelector('.chevron').classList.add('open');
+  }
+});
+
+// Table row expansion
+function toggleRow(row){
+  var id = 'd-'+row.id.replace('r-','');
+  var detail = document.getElementById(id);
+  if(detail){
+    detail.classList.toggle('open');
+    var chevron = row.querySelector('.chevron');
+    if(chevron) chevron.classList.toggle('open');
+  }
+}
+
+// Alert card expansion
+document.querySelectorAll('.alert-critical, .alert-warning').forEach(function(el){
+  el.addEventListener('click',function(e){
+    var block = this.querySelector('.expanded-block');
+    if(block) block.classList.toggle('hidden');
+  });
+});
+</script>
+</body>
+</html>

@@ -39,6 +39,29 @@ def _load_narrator_template() -> str:
     return _FALLBACK_NARRATOR_PROMPT
 
 
+def _get_holding_context(conn, code: str, date: str) -> str:
+    """Build a snapshot string for the holding: price change, fundamentals."""
+    row = conn.execute(
+        """SELECT i.code, i.name, q.close, q.change_pct
+           FROM instruments i
+           LEFT JOIN quotes q ON q.instrument_id = i.id
+             AND q.quote_date = (SELECT MAX(quote_date) FROM quotes WHERE instrument_id = i.id AND quote_date <= ?)
+           WHERE i.code = ? AND i.active = 1""",
+        (date, code),
+    ).fetchone()
+
+    if not row:
+        return f"代码：{code}（无当日行情数据）"
+
+    pct_str = f"{row['change_pct']*100:+.2f}%" if row["change_pct"] else "N/A"
+    return (
+        f"- 代码：{row['code']}\n"
+        f"- 名称：{row['name']}\n"
+        f"- 当日收盘：{row['close'] or 'N/A'}\n"
+        f"- 当日涨跌幅：{pct_str}\n"
+    )
+
+
 def _get_current_holdings(conn, date: str) -> list[dict]:
     """Get latest holdings with instrument codes, newest effective_date <= date."""
     rows = conn.execute(
@@ -155,10 +178,16 @@ def assess_holdings(
         level, direction = grade_impact(total_impact)
 
         # 6. LLM narrative (L3+ only)
+        narrative_full: dict = {}
         narrative_md = ""
         if level in ("L3", "L4", "L5"):
             try:
-                narrative_md = _generate_narrative(
+                ctx_conn = connect(db_path)
+                try:
+                    holding_ctx = _get_holding_context(ctx_conn, code, target_date)
+                finally:
+                    ctx_conn.close()
+                narrative_full = _generate_narrative(
                     holding_code=code,
                     holding_name=h["name"],
                     impact_score=total_impact,
@@ -166,33 +195,41 @@ def assess_holdings(
                     direction=direction,
                     path_details=path_details,
                     signal_summaries=[s["summary"] for s in signals if s["summary"]],
+                    holding_context=holding_ctx,
                 )
+                narrative_md = narrative_full.get("narrative_md", "")
             except Exception:
                 narrative_md = (
                     f"**{code} {h['name']}**\n\n"
                     f"影响等级：{level} | 方向：{direction} | 综合得分：{total_impact:.3f}\n\n"
                     f"共发现 {len(all_path_impacts)} 条传导路径。建议观察。"
                 )
+                narrative_full = {}
 
         # 7. Persist (L3+)
         if level in ("L3", "L4", "L5"):
-            conn = connect(db_path)
+            conn2 = connect(db_path)
             try:
-                conn.execute(
+                conn2.execute(
                     """INSERT OR REPLACE INTO chain_assessments
                        (date, holding_code, impact_score, impact_level, direction,
-                        paths_json, triggering_signal_ids, narrative_md)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                        paths_json, triggering_signal_ids, narrative_md,
+                        divergence_warning, framework_dominant, timeframe_short, timeframe_medium)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         target_date, code, total_impact, level, direction,
                         json.dumps(path_details, ensure_ascii=False),
                         json.dumps(triggering_signal_ids),
                         narrative_md,
+                        narrative_full.get("divergence_warning", ""),
+                        narrative_full.get("framework_dominant", ""),
+                        narrative_full.get("timeframe_short", ""),
+                        narrative_full.get("timeframe_medium", ""),
                     ),
                 )
-                conn.commit()
+                conn2.commit()
             finally:
-                conn.close()
+                conn2.close()
 
         results.append({
             "holding_code": code,
@@ -217,9 +254,9 @@ def _generate_narrative(
     direction: str,
     path_details: list[dict],
     signal_summaries: list[str],
-) -> str:
-    """Call LLM to generate a Chinese narrative for the assessment."""
-    # Format path summaries
+    holding_context: str = "",
+) -> dict:
+    """Call LLM to generate a narrative. Returns full AssessmentOutput as dict."""
     path_lines = []
     for i, pd in enumerate(path_details):
         seq = " → ".join(pd["node_sequence"])
@@ -230,6 +267,7 @@ def _generate_narrative(
 
     signal_text = "\n".join(f"  - {s}" for s in signal_summaries[:5])
 
+    direction_desc = {"positive": "上涨/利好", "negative": "下跌/利空", "neutral": "无方向"}
     template = _load_narrator_template()
     prompt = template.replace("{holding_code}", holding_code)
     prompt = prompt.replace("{holding_name}", holding_name)
@@ -238,15 +276,17 @@ def _generate_narrative(
     prompt = prompt.replace("{direction}", direction)
     prompt = prompt.replace("{path_details}", "\n".join(path_lines))
     prompt = prompt.replace("{signal_summaries}", signal_text)
+    prompt = prompt.replace("{holding_context}", holding_context or f"代码：{holding_code} 名称：{holding_name}")
+    prompt = prompt.replace("{direction_desc}", direction_desc.get(direction, "未知"))
 
     try:
         result = call_llm_with_schema(
             prompt,
             AssessmentOutput,
-            system_prompt="你是宏观量化分析师，生成持仓影响评估叙述。",
+            system_prompt="你是宏观策略师兼行业分析师，生成持仓影响评估叙述。",
             max_retries=2,
         )
-        return result.narrative_md
+        return result.model_dump()
     except Exception:
         raise
 

@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS chain_assessments (
     paths_json          TEXT,
     triggering_signal_ids TEXT,
     narrative_md        TEXT,
+    -- v2: time-frame aware assessment fields
+    divergence_warning  TEXT DEFAULT '',
+    framework_dominant  TEXT DEFAULT '',
+    timeframe_short     TEXT DEFAULT '',
+    timeframe_medium    TEXT DEFAULT '',
     created_at          TEXT DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(date, holding_code)
 );

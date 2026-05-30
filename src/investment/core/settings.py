@@ -2,6 +2,15 @@
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
+
+# Auto-load .env from project root
+_dotenv_path = ROOT_DIR / ".env"
+if _dotenv_path.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(_dotenv_path)
+    except ImportError:
+        pass
 SRC_DIR = ROOT_DIR / "src" / "investment"
 
 CONFIG_DIR = ROOT_DIR / "config"

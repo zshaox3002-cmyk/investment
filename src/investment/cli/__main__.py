@@ -4,6 +4,8 @@ Run as `inv ...` after `pip install -e .` or `python -m investment.cli ...`.
 """
 from __future__ import annotations
 
+from datetime import date as dt_date
+
 import typer
 from rich.console import Console
 from rich.table import Table

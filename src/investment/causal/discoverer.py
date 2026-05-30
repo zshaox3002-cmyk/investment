@@ -85,7 +85,6 @@ def discover_causal_paths(
     result = call_llm_with_schema(
         prompt,
         DiscovererOutput,
-        model="claude-opus-4-7",
         system_prompt=system_prompt,
         max_retries=3,
     )
@@ -113,7 +112,7 @@ def discover_auto(
     results: dict[str, list[ProposedPath]] = {}
 
     for code, name, change_pct in candidates:
-        event = f"{code}-{name} 近{lookback_days}日波动 {change_pct:+.1f}%"
+        event = f"{code}-{name} 近{lookback_days}日波动 {change_pct * 100:+.1f}%"
         try:
             paths = discover_causal_paths(
                 event=event,
@@ -247,7 +246,8 @@ def _find_volatile_holdings(
     try:
         cutoff = (dt_date.today() - timedelta(days=lookback_days)).isoformat()
         rows = conn.execute(
-            """SELECT i.code, i.name, q.change_pct
+            """SELECT i.code, i.name,
+                      MAX(ABS(q.change_pct)) AS max_change
                FROM quotes q
                JOIN instruments i ON q.instrument_id = i.id
                WHERE i.active = 1 AND i.asset_class = 'STOCK'
@@ -255,9 +255,9 @@ def _find_volatile_holdings(
                  AND i.tranche IN ('C', 'D')
                GROUP BY i.id
                HAVING MAX(ABS(q.change_pct)) > ?""",
-            (cutoff, threshold_pct),
+            (cutoff, threshold_pct / 100.0),
         ).fetchall()
-        return [(r["code"], r["name"], r["change_pct"]) for r in rows]
+        return [(r["code"], r["name"], r["max_change"]) for r in rows]
     finally:
         conn.close()
 

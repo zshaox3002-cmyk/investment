@@ -132,6 +132,8 @@ CREATE TABLE IF NOT EXISTS executions (
   updated_at       TEXT NOT NULL,
   FOREIGN KEY (instrument_id) REFERENCES instruments(id)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS uq_executions_key
+  ON executions(plan_name, instrument_id, phase, batch, side);
 CREATE INDEX IF NOT EXISTS idx_executions_plan ON executions(plan_name, status);
 CREATE INDEX IF NOT EXISTS idx_executions_pending
   ON executions(status, planned_date) WHERE status='pending';
@@ -346,6 +348,8 @@ CREATE TABLE IF NOT EXISTS rule_breaches (
   FOREIGN KEY (instrument_id) REFERENCES instruments(id),
   FOREIGN KEY (resolution_decision_id) REFERENCES decisions(id)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS uq_rule_breaches_key
+  ON rule_breaches(rule_path, COALESCE(instrument_id, 0), detected_at);
 
 -- ==========================================================================
 -- Views (single-source-of-truth derivations)
@@ -372,7 +376,8 @@ JOIN holdings h ON h.instrument_id = i.id
 JOIN quotes q ON q.instrument_id = i.id
   AND q.quote_date = (
     SELECT MAX(quote_date) FROM quotes q2 WHERE q2.instrument_id = i.id
-  );
+  )
+WHERE i.active = 1;
 
 DROP VIEW IF EXISTS v_compliance_status;
 CREATE VIEW v_compliance_status AS

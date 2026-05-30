@@ -32,8 +32,8 @@ class CailiansheSource(NewsSource):
         max_articles = self.config.get("max_articles_per_source", 50)
 
         for _, row in df.head(max_articles).iterrows():
-            title = str(row.get("title", row.get("content", "")))
-            content = str(row.get("content", ""))
+            title = str(row.get("tag", row.get("summary", "")))
+            content = str(row.get("summary", ""))
             url = str(row.get("url", ""))
 
             if not title:

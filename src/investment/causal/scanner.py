@@ -176,12 +176,14 @@ def update_lifecycle(db_path: Path | None = None) -> dict:
             if node.lifecycle_state == "archived":
                 continue
 
-            # Calculate days since last signal
-            days_since = 999
-            if node.last_signal_at:
+            # Calculate days since last signal.
+            # Nodes with no signal/created_at are new — treat as day 0.
+            days_since = 0
+            ref_dt = node.last_signal_at or node.created_at
+            if ref_dt:
                 try:
-                    last_date = dt_date.fromisoformat(node.last_signal_at[:10])
-                    days_since = (today - last_date).days
+                    ref_date = dt_date.fromisoformat(ref_dt[:10])
+                    days_since = (today - ref_date).days
                 except (ValueError, TypeError):
                     pass
 

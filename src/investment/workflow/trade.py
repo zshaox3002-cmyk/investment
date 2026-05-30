@@ -246,6 +246,12 @@ def apply_trade(trade_id: int, db_path=None) -> dict:
             "UPDATE trades SET notes=COALESCE(notes||' ', '')||'[applied]' WHERE id=?",
             (trade_id,),
         )
+        # Auto-deactivate instrument when position is fully exited
+        if new_shares == 0:
+            conn.execute(
+                "UPDATE instruments SET active=0 WHERE id=?",
+                (iid,),
+            )
 
     return {"trade_id": trade_id, "new_shares": new_shares, "new_cost": new_cost}
 

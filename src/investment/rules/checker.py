@@ -304,6 +304,17 @@ def write_alerts(
                 (today, a["type"], iid, iid),
             ).fetchone()
             if existing:
+                # If existing row came from migration (has body_path, generic message),
+                # replace with the cleaner checker-generated message.
+                existing_row = conn.execute(
+                    "SELECT message, body_path FROM alerts WHERE id=?",
+                    (existing[0],),
+                ).fetchone()
+                if existing_row and existing_row["body_path"]:
+                    conn.execute(
+                        "UPDATE alerts SET message=?, body_path=NULL WHERE id=?",
+                        (a["message"], existing[0]),
+                    )
                 continue
             try:
                 conn.execute(

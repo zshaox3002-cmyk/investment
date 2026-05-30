@@ -116,7 +116,7 @@ def _patch_requests_proxy() -> None:
         return
     _orig = requests.utils.get_environ_proxies
     def _patched(url, no_proxy=None):
-        if re.search(r"(eastmoney|gtimg|qq\.com)", url or ""):
+        if re.search(r"(eastmoney|gtimg|qq\.com|10jqka|ths\.com)", url or ""):
             return {}
         return _orig(url, no_proxy)
     requests.utils.get_environ_proxies = _patched
@@ -124,10 +124,12 @@ def _patch_requests_proxy() -> None:
 
 
 def _fetch_ths_financials(code: str, ak, timeout_sec: int = 8) -> dict:
-    """Fetch latest ROE and net profit growth from THS (同花顺) for a single stock.
+    """Fetch latest ROE from THS (同花顺) for a single stock.
 
-    Returns dict with keys: roe_latest, net_profit_growth, or empty dict on failure.
-    Uses signal-based timeout to avoid hanging.
+    Anti-scraping measures:
+    - 8s hard timeout via SIGALRM
+    - Returns {} on any failure (timeout / rate-limit / parse error)
+    - Caller is responsible for inter-request delay
     """
     import signal
 
@@ -209,9 +211,14 @@ def scan_akshare(month: Optional[str] = None, quick: bool = False, db_path=None)
     print(f"  获取到 {len(df)} 只股票，开始处理...")
 
     # ── Step 2: filter + fetch financials ─────────────────────────────────
+    import random
     inserted = 0
     today = scan_date
-    fetch_limit = len(df)  # quick: all 20; full: all non-ST
+    fetch_limit = len(df)
+
+    # Anti-scraping: track consecutive failures for backoff
+    consecutive_failures = 0
+    MAX_CONSECUTIVE_FAILURES = 5  # stop fetching financials if too many timeouts
 
     with transaction(db_path) as conn:
         fetched = 0
@@ -223,15 +230,29 @@ def scan_akshare(month: Optional[str] = None, quick: bool = False, db_path=None)
             if name.startswith("ST") or name.startswith("*ST") or name.startswith("XD"):
                 continue
 
-            # Fetch financials from THS (with rate limiting)
+            # Fetch financials from THS (with rate limiting + backoff)
             financials = {}
-            if fetched < fetch_limit:
+            if fetched < fetch_limit and consecutive_failures < MAX_CONSECUTIVE_FAILURES:
                 financials = _fetch_ths_financials(code, ak)
                 fetched += 1
+                if financials:
+                    consecutive_failures = 0  # reset on success
+                else:
+                    consecutive_failures += 1
+
                 if fetched % 5 == 0:
-                    print(f"    财务数据进度: {fetched}/{fetch_limit}")
+                    print(f"    财务数据进度: {fetched}/{fetch_limit}，连续失败: {consecutive_failures}")
+
                 if not quick:
-                    time.sleep(0.5)  # rate limit: 2 req/s in full mode
+                    # Random delay 0.8-1.5s to avoid rate limiting
+                    time.sleep(0.8 + random.random() * 0.7)
+                else:
+                    # Quick mode: minimal delay
+                    time.sleep(0.1 + random.random() * 0.2)
+
+            elif consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                # Too many failures — skip remaining financial fetches
+                pass
 
             roe = financials.get("roe_latest")
             candidate_row = {
@@ -336,6 +357,145 @@ def list_candidates(
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def refresh_valuations(codes: list[str] | None = None, delay: float = 1.5, db_path=None) -> dict:
+    """Refresh PE(TTM), market_cap, PB for candidates using stock_value_em (东方财富单股).
+
+    Args:
+        codes: specific codes to refresh; None = all candidates with status='candidate'
+        delay: seconds between requests to avoid rate limiting
+        db_path: override DB path
+
+    Returns:
+        dict with keys: updated, skipped, failed, errors
+    """
+    import time
+
+    _patch_requests_proxy()
+
+    try:
+        import akshare as ak
+    except ImportError:
+        print("  [错误] akshare 未安装，请运行: pip install akshare")
+        return {"updated": 0, "skipped": 0, "failed": 0, "errors": []}
+
+    conn = connect(db_path)
+    if codes:
+        placeholders = ",".join("?" * len(codes))
+        rows = conn.execute(
+            f"SELECT id, code, name FROM candidates WHERE code IN ({placeholders})",
+            codes,
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id, code, name FROM candidates WHERE status='candidate' AND market='A'"
+        ).fetchall()
+    conn.close()
+
+    if not rows:
+        print("  候选池为空，无需刷新")
+        return {"updated": 0, "skipped": 0, "failed": 0, "errors": []}
+
+    rules = _load_screening_rules()
+    blocked_themes = _get_blocked_themes(db_path)
+
+    updated = skipped = failed = 0
+    errors: list[str] = []
+
+    print(f"  刷新 {len(rows)} 只候选标的估值数据...")
+
+    for i, row in enumerate(rows):
+        cid, code, name = row["id"], row["code"], row["name"]
+        # stock_value_em only supports 6-digit A-share codes
+        if not code or len(code) != 6 or not code.isdigit():
+            skipped += 1
+            continue
+
+        import signal
+
+        def _handler(signum, frame):
+            raise TimeoutError()
+
+        signal.signal(signal.SIGALRM, _handler)
+        signal.alarm(10)
+        try:
+            df = ak.stock_value_em(symbol=code)
+            signal.alarm(0)
+        except TimeoutError:
+            signal.alarm(0)
+            msg = f"{code} {name}: 超时"
+            print(f"  [warn] {msg}")
+            errors.append(msg)
+            failed += 1
+            continue
+        except Exception as e:
+            signal.alarm(0)
+            msg = f"{code} {name}: {e}"
+            print(f"  [warn] {msg}")
+            errors.append(msg)
+            failed += 1
+            continue
+
+        if df is None or df.empty:
+            skipped += 1
+            continue
+
+        latest = df.iloc[-1]
+        pe = latest.get("PE(TTM)")
+        cap = latest.get("总市值")
+        pb = latest.get("市净率")
+
+        # Recompute composite score with refreshed data
+        conn2 = connect(db_path)
+        existing = conn2.execute(
+            "SELECT roe_3y_avg, dividend_yield, theme FROM candidates WHERE id=?", (cid,)
+        ).fetchone()
+        conn2.close()
+
+        roe = existing["roe_3y_avg"] if existing else None
+        div = existing["dividend_yield"] if existing else None
+        theme = existing["theme"] if existing else None
+
+        candidate_row = {
+            "code": code, "name": name,
+            "pe_ttm": float(pe) if pe is not None else None,
+            "roe_3y_avg": roe,
+            "dividend_yield": div,
+            "market_cap": float(cap) if cap is not None else None,
+            "theme": theme,
+        }
+        new_score = _score_candidate(candidate_row, rules)
+        passed, blocked_by = _check_compliance(candidate_row, rules, blocked_themes)
+
+        with transaction(db_path) as conn3:
+            conn3.execute(
+                """UPDATE candidates
+                   SET pe_ttm=?, market_cap=?, pb=?,
+                       composite_score=?, compliance_passed=?, compliance_blocked_by=?,
+                       scan_date=date('now')
+                   WHERE id=?""",
+                (
+                    float(pe) if pe is not None else None,
+                    float(cap) if cap is not None else None,
+                    float(pb) if pb is not None else None,
+                    new_score,
+                    1 if passed else 0,
+                    blocked_by or None,
+                    cid,
+                ),
+            )
+
+        updated += 1
+        pe_str = f"{pe:.2f}" if pe is not None else "N/A"
+        cap_str = f"{cap/1e8:.0f}亿" if cap is not None else "N/A"
+        print(f"  [{i+1}/{len(rows)}] {code} {name}: PE={pe_str}, 市值={cap_str}, 评分={new_score:.2f}")
+
+        if i < len(rows) - 1:
+            time.sleep(delay)
+
+    print(f"  完成: 更新={updated}, 跳过={skipped}, 失败={failed}")
+    return {"updated": updated, "skipped": skipped, "failed": failed, "errors": errors}
 
 
 def promote_candidate(candidate_id: int, to_status: str, db_path=None) -> bool:
