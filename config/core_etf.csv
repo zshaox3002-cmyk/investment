@@ -1,6 +1,0 @@
-code,name,shares,cost_price,target_ratio,target_value,rebalance_freq
-513010,港股科技 ETF,17300,0.649,0.3333,160725,quarterly
-563360,中证A500 ETF,21700,1.383,0.3333,160725,quarterly
-515180,中证红利 ETF,0,0.00,0.1334,64290,quarterly
-159915,创业板 ETF,0,0.00,0.2000,96435,quarterly
-159941,纳指100 ETF,66500,1.38,0.0000,0,runoff

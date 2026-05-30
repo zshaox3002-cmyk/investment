@@ -21,11 +21,28 @@ env/
 .idea/
 
 # DB / runtime
+data/portfolio.db
 data/portfolio.db-journal
 data/portfolio.db-wal
 data/portfolio.db-shm
+data/portfolio_ts.csv
 data/snapshots/
+portfolio.db
 tmp/
+
+# Personal data (never commit)
+DASHBOARD.html
+reviews/
+trades/
+theses/
+alerts/
+config/cash_positions.csv
+config/core_etf.csv
+config/holdings.csv
+config/portfolio_snapshot.csv
+
+# Secrets
+.env
 
 # Logs
 *.log
