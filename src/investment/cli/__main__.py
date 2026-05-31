@@ -5,6 +5,7 @@ Run as `inv ...` after `pip install -e .` or `python -m investment.cli ...`.
 from __future__ import annotations
 
 from datetime import date as dt_date
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -31,6 +32,12 @@ exec_app = typer.Typer(help="Execution monitoring.", no_args_is_help=True)
 candidate_app = typer.Typer(help="Candidate pool.", no_args_is_help=True)
 review_app = typer.Typer(help="Trade reviews.", no_args_is_help=True)
 causal_app = typer.Typer(help="Causal graph analysis.", no_args_is_help=True)
+profile_app = typer.Typer(help="Investor profile and goals.", no_args_is_help=True)
+risk_app = typer.Typer(help="Portfolio risk quantification.", no_args_is_help=True)
+attribution_app = typer.Typer(help="Performance attribution.", no_args_is_help=True)
+calendar_app = typer.Typer(help="Investment calendar and reminders.", no_args_is_help=True)
+cost_app = typer.Typer(help="Trade cost calculator.", no_args_is_help=True)
+behavior_app = typer.Typer(help="Behavioral bias detection.", no_args_is_help=True)
 app.add_typer(migrate_app, name="migrate")
 app.add_typer(data_app, name="data")
 app.add_typer(snapshot_app, name="snapshot")
@@ -41,6 +48,12 @@ app.add_typer(exec_app, name="exec")
 app.add_typer(candidate_app, name="candidate")
 app.add_typer(review_app, name="review")
 app.add_typer(causal_app, name="causal")
+app.add_typer(profile_app, name="profile")
+app.add_typer(risk_app, name="risk")
+app.add_typer(attribution_app, name="attribution")
+app.add_typer(calendar_app, name="calendar")
+app.add_typer(cost_app, name="cost")
+app.add_typer(behavior_app, name="behavior")
 
 
 @app.command()
@@ -1312,6 +1325,323 @@ def causal_lifecycle_review(
             r["updated_at"][:10] if r["updated_at"] else "—",
         )
     console.print(table)
+
+
+# ── Profile commands ──────────────────────────────────────────────────────────
+
+@profile_app.command("show")
+def profile_show() -> None:
+    """Show the current investor profile and A/B/C allocation."""
+    from investment.agent_tools.onboarding import get_latest_profile, get_active_goals, _RISK_LABELS
+    profile = get_latest_profile()
+    if not profile:
+        console.print("[yellow]尚未设置投资画像。运行 `inv profile set` 开始配置。[/yellow]")
+        raise typer.Exit(1)
+
+    console.print(f"\n[bold]投资画像[/bold]（创建于 {profile['created_at'][:10]}）")
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("字段", style="dim")
+    table.add_column("值")
+    risk_label = _RISK_LABELS.get(profile["risk_tolerance"], profile["risk_tolerance"])
+    table.add_row("风险承受", risk_label)
+    table.add_row("最大回撤容忍", f"{profile['max_drawdown_tolerance']}%")
+    table.add_row("投资期限", f"{profile['horizon_years']} 年")
+    table.add_row("可投资金额", f"¥{profile['investable_capital']:,.0f}")
+    console.print(table)
+
+    console.print(f"\n[bold]A/B/C 配置方案[/bold]")
+    alloc_table = Table()
+    alloc_table.add_column("档位")
+    alloc_table.add_column("用途")
+    alloc_table.add_column("比例")
+    alloc_table.add_column("金额")
+    capital = profile["investable_capital"]
+    alloc_table.add_row("A 档", "生活保障金（货币/债券）",
+                        f"{profile['a_ratio']:.0%}", f"¥{capital * profile['a_ratio']:,.0f}")
+    alloc_table.add_row("B 档", "核心 ETF（宽基指数）",
+                        f"{profile['b_ratio']:.0%}", f"¥{capital * profile['b_ratio']:,.0f}")
+    alloc_table.add_row("C 档", "主动选股",
+                        f"{profile['c_ratio']:.0%}", f"¥{capital * profile['c_ratio']:,.0f}")
+    console.print(alloc_table)
+
+    goals = get_active_goals(profile["id"])
+    if goals:
+        console.print(f"\n[bold]投资目标[/bold]")
+        for g in goals:
+            console.print(f"  目标年化：{g['target_annual_return']}%", end="")
+            if g["target_amount"]:
+                console.print(f"  目标金额：¥{g['target_amount']:,.0f}", end="")
+            if g["deadline"]:
+                console.print(f"  截止：{g['deadline']}", end="")
+            console.print()
+
+
+@profile_app.command("set")
+def profile_set(
+    capital: float = typer.Option(..., "--capital", "-c", help="可投资金额（元）"),
+    risk: str = typer.Option(..., "--risk", "-r", help="风险承受：conservative/moderate/aggressive"),
+    horizon: int = typer.Option(..., "--horizon", "-h", help="投资期限（年）"),
+    target_return: float = typer.Option(..., "--target-return", "-t", help="目标年化收益率（%）"),
+    max_dd: float = typer.Option(20.0, "--max-dd", help="最大回撤容忍度（%）"),
+    target_amount: Optional[float] = typer.Option(None, "--target-amount", help="目标金额（元）"),
+    deadline: Optional[str] = typer.Option(None, "--deadline", help="目标截止日期 YYYY-MM-DD"),
+    notes: str = typer.Option("", "--notes", "-n", help="备注"),
+) -> None:
+    """Create or update investor profile and generate A/B/C allocation."""
+    from investment.agent_tools.onboarding import ProfileInput, run_onboarding
+    inp = ProfileInput(
+        investable_capital=capital,
+        risk_tolerance=risk,
+        horizon_years=horizon,
+        target_annual_return=target_return,
+        max_drawdown_tolerance=max_dd,
+        target_amount=target_amount,
+        deadline=deadline,
+        notes=notes,
+    )
+    result = run_onboarding(inp)
+    if result.success:
+        console.print(result.human_message)
+    else:
+        console.print(f"[red]{result.human_message}[/red]")
+        raise typer.Exit(1)
+
+
+@profile_app.command("reset")
+def profile_reset(
+    confirm: bool = typer.Option(False, "--confirm", help="确认重置（必须显式传入）"),
+) -> None:
+    """Delete all profile data (user_profile, goals, asset_inventory). Requires --confirm."""
+    if not confirm:
+        console.print("[yellow]危险操作！请加 --confirm 参数确认删除所有画像数据。[/yellow]")
+        raise typer.Exit(1)
+    from investment.core.db import transaction as db_tx
+    with db_tx() as conn:
+        conn.execute("DELETE FROM asset_inventory")
+        conn.execute("DELETE FROM goals")
+        conn.execute("DELETE FROM user_profile")
+    console.print("[green]✓ 投资画像已清空。运行 `inv profile set` 重新配置。[/green]")
+
+
+# ── Risk commands ─────────────────────────────────────────────────────────────
+
+@risk_app.command("compute")
+def risk_compute(
+    lookback: int = typer.Option(60, "--lookback", "-l", help="历史回溯天数"),
+    no_save: bool = typer.Option(False, "--no-save", help="不写入数据库"),
+) -> None:
+    """Compute portfolio risk metrics and save to DB."""
+    from investment.agent_tools.risk_engine import run_risk_engine
+    console.print(f"[dim]计算组合风险指标（回溯 {lookback} 天）...[/dim]")
+    report = run_risk_engine(lookback_days=lookback, save=not no_save)
+    console.print(report.human_message)
+    if not no_save:
+        console.print(f"\n[dim]✓ 风险指标已保存（{report.calc_date}）[/dim]")
+
+
+@risk_app.command("show")
+def risk_show(
+    lookback: int = typer.Option(60, "--lookback", "-l", help="历史回溯天数"),
+) -> None:
+    """Show latest risk metrics from DB, or compute if not available."""
+    from investment.core.db import connect as db_connect
+    from investment.agent_tools.risk_engine import run_risk_engine
+    conn = db_connect()
+    row = conn.execute(
+        "SELECT * FROM risk_metrics ORDER BY calc_date DESC, id DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+
+    if row:
+        from investment.agent_tools.translator import fmt_pct
+        console.print(f"\n[bold]最近一次风险计算[/bold]（{row['calc_date']}，回溯 {row['lookback_days']} 天）")
+        table = Table()
+        table.add_column("指标")
+        table.add_column("数值")
+        table.add_row("年化波动率", fmt_pct(row["portfolio_vol"] or 0))
+        table.add_row("最大回撤", fmt_pct(row["max_drawdown"] or 0))
+        table.add_row("回撤持续", f"{row['dd_duration_days'] or 0} 个交易日")
+        table.add_row("95% VaR（单日）", fmt_pct(row["var_95"] or 0))
+        table.add_row("Sharpe 比率", f"{row['sharpe_ratio'] or 0:.2f}")
+        console.print(table)
+        console.print("\n[dim]运行 `inv risk compute` 更新指标[/dim]")
+    else:
+        console.print("[yellow]尚无风险数据，正在计算...[/yellow]")
+        report = run_risk_engine(lookback_days=lookback, save=True)
+        console.print(report.human_message)
+
+
+# ── Attribution commands ──────────────────────────────────────────────────────
+
+@attribution_app.command("compute")
+def attribution_compute(
+    start: Optional[str] = typer.Option(None, "--start", "-s", help="起始日期 YYYY-MM-DD（默认30天前）"),
+    end: Optional[str] = typer.Option(None, "--end", "-e", help="截止日期 YYYY-MM-DD（默认今日）"),
+    benchmark: str = typer.Option("000300", "--benchmark", "-b", help="基准指数代码（默认沪深300）"),
+    no_save: bool = typer.Option(False, "--no-save", help="不写入数据库"),
+) -> None:
+    """Compute performance attribution (BHB decomposition) vs benchmark."""
+    from investment.agent_tools.attribution import run_attribution
+    console.print("[dim]计算业绩归因...[/dim]")
+    result = run_attribution(
+        period_start=start, period_end=end,
+        benchmark_code=benchmark, save=not no_save,
+    )
+    console.print(result.human_message)
+    if not no_save and not result.insufficient_data:
+        console.print(f"\n[dim]✓ 归因结果已保存（{result.period_start} ~ {result.period_end}）[/dim]")
+
+
+@attribution_app.command("show")
+def attribution_show() -> None:
+    """Show the most recent attribution result from DB."""
+    from investment.core.db import connect as db_connect
+    from investment.agent_tools.translator import fmt_pct
+    conn = db_connect()
+    row = conn.execute(
+        "SELECT * FROM performance_attribution ORDER BY period_end DESC, id DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        console.print("[yellow]尚无归因数据。运行 `inv attribution compute` 生成。[/yellow]")
+        raise typer.Exit(1)
+
+    console.print(f"\n[bold]最近一次业绩归因[/bold]（{row['period_start']} ~ {row['period_end']}）")
+    table = Table()
+    table.add_column("指标")
+    table.add_column("数值")
+    table.add_row("组合收益", fmt_pct(row["total_return"] or 0))
+    table.add_row(f"基准（{row['benchmark_code']}）", fmt_pct(row["benchmark_return"] or 0))
+    excess = row["excess_return"] or 0
+    table.add_row("超额收益", f"{'+' if excess >= 0 else ''}{fmt_pct(excess)}")
+    table.add_row("择时贡献", fmt_pct(row["timing_contrib"] or 0))
+    table.add_row("选股贡献", fmt_pct(row["selection_contrib"] or 0))
+    table.add_row("配置贡献", fmt_pct(row["allocation_contrib"] or 0))
+    console.print(table)
+    console.print("\n[dim]运行 `inv attribution compute` 更新[/dim]")
+
+
+# ── Causal insight commands (Phase 6 additions) ───────────────────────────────
+
+@causal_app.command("insight")
+def causal_insight(
+    date: Optional[str] = typer.Option(None, "--date", "-d", help="日期 YYYY-MM-DD（默认今日）"),
+    code: Optional[str] = typer.Option(None, "--code", "-c", help="只查看指定股票代码"),
+) -> None:
+    """Show causal insights for today's holdings (zero graph operations required)."""
+    from investment.agent_tools.causal_facade import run_causal_insight
+    report = run_causal_insight(as_of=date, holding_code=code)
+    console.print(report.human_message)
+
+
+@causal_app.command("validate")
+def causal_validate(
+    assessment_id: int = typer.Argument(..., help="评估记录 ID"),
+    status: str = typer.Option(..., "--status", "-s", help="confirmed | refuted | open"),
+    reason: str = typer.Option("", "--reason", "-r", help="更新原因"),
+) -> None:
+    """Update the validation status of a causal assessment (confirmed/refuted/open)."""
+    from investment.agent_tools.causal_facade import update_validation_status
+    ok = update_validation_status(assessment_id, status, reason)
+    if ok:
+        console.print(f"[green]✓ 评估 #{assessment_id} 状态已更新为 {status}[/green]")
+    else:
+        console.print(f"[red]更新失败：ID {assessment_id} 不存在或状态值无效[/red]")
+        raise typer.Exit(1)
+
+
+# ── Calendar commands ─────────────────────────────────────────────────────────
+
+@calendar_app.command("show")
+def calendar_show(
+    period: str = typer.Option("week", "--period", "-p", help="today|week|month|quarter|year"),
+) -> None:
+    """Show investment calendar tasks for the given period."""
+    from investment.agent_tools.calendar import run_calendar
+    report = run_calendar(period=period)
+    console.print(report.human_message)
+
+
+@calendar_app.command("add")
+def calendar_add(
+    title: str = typer.Argument(..., help="任务标题"),
+    due: str = typer.Option(..., "--due", "-d", help="截止日期 YYYY-MM-DD"),
+    category: str = typer.Option("custom", "--category", "-c", help="cooldown|earnings|rebalance|monthly|quarterly|annual|custom"),
+    priority: str = typer.Option("medium", "--priority", "-p", help="high|medium|low"),
+    code: Optional[str] = typer.Option(None, "--code", help="相关股票代码"),
+    notes: Optional[str] = typer.Option(None, "--notes", "-n", help="备注"),
+) -> None:
+    """Add a task to the investment calendar."""
+    from investment.agent_tools.calendar import create_task
+    task_id = create_task(title, category, due, priority, code, notes)
+    console.print(f"[green]✓ 任务已添加（ID: {task_id}）：{title}，截止 {due}[/green]")
+
+
+@calendar_app.command("done")
+def calendar_done(
+    task_id: int = typer.Argument(..., help="任务 ID"),
+    notes: str = typer.Option("", "--notes", "-n", help="完成备注"),
+) -> None:
+    """Mark a calendar task as done."""
+    from investment.agent_tools.calendar import complete_task
+    ok = complete_task(task_id, notes)
+    if ok:
+        console.print(f"[green]✓ 任务 #{task_id} 已完成[/green]")
+    else:
+        console.print(f"[red]任务 #{task_id} 不存在[/red]")
+        raise typer.Exit(1)
+
+
+# ── Cost commands ─────────────────────────────────────────────────────────────
+
+@cost_app.command("calc")
+def cost_calc(
+    code: str = typer.Argument(..., help="股票代码"),
+    shares: float = typer.Option(..., "--shares", "-s", help="股数"),
+    price: float = typer.Option(..., "--price", "-p", help="价格"),
+    side: str = typer.Option(..., "--side", help="BUY|SELL"),
+    save: bool = typer.Option(False, "--save", help="保存到数据库"),
+) -> None:
+    """Calculate transaction cost for a trade."""
+    from investment.agent_tools.cost_calculator import calc_cost, save_cost_log
+    breakdown = calc_cost(code, shares, price, side)
+    console.print(breakdown.human_message)
+    if save:
+        save_cost_log(breakdown)
+        console.print("[dim]✓ 成本记录已保存[/dim]")
+
+
+# ── Behavior commands ─────────────────────────────────────────────────────────
+
+@behavior_app.command("check")
+def behavior_check(
+    lookback: int = typer.Option(90, "--lookback", "-l", help="回溯天数"),
+) -> None:
+    """Run a behavioral bias check on recent trading activity."""
+    from investment.agent_tools.behavior_guard import run_behavior_check
+    report = run_behavior_check(lookback_days=lookback)
+    console.print(report.human_message)
+
+
+@behavior_app.command("log")
+def behavior_log(
+    decision_type: str = typer.Argument(..., help="BUY|SELL|HOLD|PASS"),
+    reason: str = typer.Option(..., "--reason", "-r", help="决策理由"),
+    code: Optional[str] = typer.Option(None, "--code", "-c", help="相关股票代码"),
+    emotion: Optional[str] = typer.Option(None, "--emotion", "-e", help="当前情绪状态"),
+) -> None:
+    """Log a decision and check for behavioral biases."""
+    from investment.agent_tools.behavior_guard import log_decision
+    journal_id, biases = log_decision(decision_type, reason, code, emotion)
+    console.print(f"[green]✓ 决策已记录（ID: {journal_id}）[/green]")
+    if biases:
+        console.print(f"\n[yellow]⚠️ 检测到 {len(biases)} 个行为偏差：[/yellow]")
+        for b in biases:
+            console.print(f"  - {b.bias_label}：{b.evidence}")
+            console.print(f"    所以你该做什么：{b.action}")
+    else:
+        console.print("[green]✓ 未检测到明显行为偏差[/green]")
 
 
 if __name__ == "__main__":

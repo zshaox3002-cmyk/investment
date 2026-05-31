@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 驱动投资管理系统 — 技术架构与开发者文档</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;background:#f5f7fa;color:#1a202c;font-size:15px;line-height:1.8}
+#top-header{position:fixed;top:0;left:0;right:0;height:56px;background:linear-gradient(135deg,#2d3748 0%,#1a202c 100%);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+#top-header .header-left{display:flex;align-items:center;gap:12px}
+#top-header .title{font-size:16px;font-weight:700;letter-spacing:.5px}
+#top-header .version{font-size:11px;opacity:.85;background:rgba(255,255,255,.1);padding:3px 10px;border-radius:12px}
+#top-header .updated{font-size:11px;opacity:.7}
+#sidebar{position:fixed;top:56px;left:0;bottom:0;width:260px;background:#fff;border-right:1px solid #e2e8f0;overflow-y:auto;padding:20px 0;z-index:90;box-shadow:2px 0 8px rgba(0,0,0,.04)}
+#sidebar a{display:block;padding:8px 20px;color:#4a5568;text-decoration:none;font-size:13px;border-left:3px solid transparent;transition:all .2s}
+#sidebar a:hover{background:#f0f4f8;color:#2d3748;border-left-color:#2d3748}
+#sidebar a.active{color:#2d3748;border-left-color:#2d3748;background:#edf2f7;font-weight:600}
+#sidebar .nav-section{padding:14px 20px 6px;font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:.08em;margin-top:8px}
+#sidebar .nav-section:first-child{margin-top:0}
+#sidebar .nav-sub{padding-left:36px;font-size:12px;color:#718096}
+#content{margin-left:260px;margin-top:56px;padding:48px 56px;max-width:1200px}
+.section{margin-bottom:64px;scroll-margin-top:80px}
+.section h1{font-size:28px;font-weight:800;color:#1a202c;margin-bottom:12px;padding-bottom:16px;border-bottom:3px solid #2d3748;letter-spacing:-.5px}
+.section h2{font-size:20px;font-weight:700;color:#1a202c;margin:40px 0 16px;padding-top:8px}
+.section h3{font-size:15px;font-weight:600;color:#2d3748;margin:24px 0 10px}
+.section p{margin-bottom:14px;color:#4a5568;line-height:1.8}
+.section ul{margin:12px 0 12px 24px;color:#4a5568}
+.section li{margin-bottom:6px;line-height:1.7}
+.table-wrap{overflow-x:auto;margin:16px 0;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.04)}
+table{width:100%;border-collapse:collapse;margin:0;font-size:13px;background:#fff}
+th{background:#edf2f7;color:#2d3748;font-weight:700;padding:12px 14px;text-align:left;border-bottom:2px solid #cbd5e0;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+td{padding:11px 14px;border-bottom:1px solid #edf2f7;color:#4a5568}
+tr:hover td{background:#f7fafc}
+tr:nth-child(even) td{background:#fafbfc}
+pre,code{font-family:"SF Mono","Fira Code","Consolas",monospace}
+pre{background:#1a202c;color:#e2e8f0;padding:16px 20px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.7;margin:14px 0;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+code{background:#edf2f7;color:#c53030;padding:3px 7px;border-radius:4px;font-size:13px;font-weight:500}
+pre code{background:none;color:inherit;padding:0}
+.badge{display:inline-block;padding:3px 12px;border-radius:14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.badge-l1{background:#ebf8ff;color:#0052a3}.badge-l2{background:#fffbeb;color:#92400e}.badge-l3{background:#fff5f5;color:#991b1b}
+.steps{display:flex;gap:0;margin:20px 0;flex-wrap:wrap}
+.step{flex:1;min-width:140px;padding:14px 16px;background:#fff;border:1px solid #e2e8f0;position:relative;border-radius:6px;transition:all .2s}
+.step:hover{border-color:#2d3748;box-shadow:0 4px 8px rgba(0,0,0,.08)}
+.step:not(:last-child)::after{content:"→";position:absolute;right:-12px;top:50%;transform:translateY(-50%);color:#cbd5e0;z-index:1;font-size:16px;font-weight:300}
+.step .step-num{font-size:10px;font-weight:800;color:#2d3748;text-transform:uppercase;letter-spacing:.5px}
+.step .step-title{font-size:13px;font-weight:700;color:#1a202c;margin-top:4px}
+.step .step-desc{font-size:12px;color:#718096;margin-top:3px;line-height:1.5}
+.step-cmd{margin-top:8px;padding:6px 10px;background:#1a202c;border-radius:6px;font-family:'SFMono-Regular',Consolas,monospace;font-size:11px;color:#68d391;line-height:1.6;word-break:break-all;border-left:3px solid #2d3748}
+.step-cmd-optional{margin-top:8px;padding:6px 10px;background:#2d3748;border-radius:6px;font-family:'SFMono-Regular',Consolas,monospace;font-size:11px;color:#a0aec0;line-height:1.6;word-break:break-all;border:1px dashed #4a5568;position:relative}
+.step-cmd-optional::after{content:"可选";position:absolute;top:-8px;right:8px;background:#4a5568;color:#cbd5e0;font-size:9px;padding:1px 5px;border-radius:2px;font-family:inherit;font-weight:600}
+.step-no-cmd{margin-top:8px;padding:6px 10px;background:#f7fafc;border-radius:6px;font-size:11px;color:#a0aec0;text-align:center;border:1px dashed #e2e8f0}
+.step.step-waiting{opacity:0.65;background:#f7fafc}
+.info-box{background:linear-gradient(135deg,#edf2f7 0%,#f7fafc 100%);border-left:4px solid #2d3748;padding:14px 18px;border-radius:6px;margin:16px 0;font-size:13px;color:#2d3748;line-height:1.7}
+.warn-box{background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%);border-left:4px solid #d69e2e;padding:14px 18px;border-radius:6px;margin:16px 0;font-size:13px;color:#744210;line-height:1.7}
+.script-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin:20px 0}
+.script-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:18px;transition:all .3s;box-shadow:0 2px 4px rgba(0,0,0,.04)}
+.script-card:hover{border-color:#2d3748;box-shadow:0 8px 16px rgba(0,0,0,.08)}
+.script-card .script-name{font-size:14px;font-weight:700;color:#2d3748;font-family:"SF Mono",monospace;margin-bottom:6px}
+.script-card .script-desc{font-size:13px;color:#4a5568;margin:8px 0;line-height:1.6}
+.script-card .script-cmd{background:#1a202c;color:#68d391;padding:8px 12px;border-radius:6px;font-size:12px;font-family:monospace;line-height:1.6;overflow-x:auto}
+.script-card .script-output{font-size:11px;color:#a0aec0;margin-top:6px;font-family:monospace}
+.divider{height:1px;background:linear-gradient(90deg,transparent,#e2e8f0,transparent);margin:32px 0}
+.footer{text-align:center;padding:48px 0;color:#a0aec0;font-size:12px;border-top:1px solid #e2e8f0;margin-top:48px;line-height:1.8}
+@media(max-width:1024px){#sidebar{width:240px}#content{margin-left:240px;padding:40px 40px}}
+@media(max-width:768px){#sidebar{position:fixed;left:-260px;width:260px;transition:left .3s;background:#fff;z-index:95}#sidebar.open{left:0}#content{margin-left:0;padding:24px 20px}.section{margin-bottom:48px}.section h1{font-size:24px}.section h2{font-size:18px}.steps{flex-direction:column}.step:not(:last-child)::after{display:none}.script-grid{grid-template-columns:1fr}table{font-size:12px}th,td{padding:8px 10px}pre{padding:12px 14px;font-size:12px}#top-header{padding:0 16px}#top-header .updated{display:none}}
+@media print{#top-header,#sidebar{display:none}#content{margin-left:0;padding:40px}body{background:#fff}}
+</style>
+</head>
+<body>
+<header id="top-header">
+  <div class="header-left">
+    <span class="title">📐 技术架构与开发者文档</span>
+    <span class="version">v3.0</span>
+  </div>
+  <span class="updated">更新于 2026-05-30</span>
+</header>
+
+<nav id="sidebar">
+  <div class="nav-section">架构</div>
+  <a href="#arch-overview">系统架构总览</a>
+  <a href="#arch-datalayer" class="nav-sub">数据层架构</a>
+  <a href="#arch-db" class="nav-sub">数据库表与视图</a>
+  <a href="#arch-migrations" class="nav-sub">迁移脚本说明</a>
+  <div class="nav-section">CLI 命令</div>
+  <a href="#cli-core">核心命令参考</a>
+  <a href="#cli-causal" class="nav-sub">因果推理命令</a>
+  <a href="#cli-new" class="nav-sub">v3.0 新增命令组</a>
+  <div class="nav-section">因果推理</div>
+  <a href="#causal">事件驱动因果推理</a>
+  <a href="#causal-graph" class="nav-sub">图谱结构与建模</a>
+  <a href="#causal-pipeline" class="nav-sub">每日流水线与算法</a>
+  <a href="#causal-review" class="nav-sub">图谱发现与审批</a>
+  <div class="nav-section">配置与运行</div>
+  <a href="#config">配置文件说明</a>
+  <a href="#workflow">日常工作流时间表</a>
+  <a href="#quickstart">环境要求与快速上手</a>
+  <a href="#skills-tech">AI Skills 技术说明</a>
+</nav>
+
+<main id="content">
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- 系统架构总览                                                              -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<section class="section" id="arch-overview">
+  <h1>系统架构总览</h1>
+  <p>v2 采用<strong>三层薄壳架构</strong>，状态全部持久化到 SQLite，配置文件只放规则与目标。</p>
+  <pre>┌─────────────────────────────────────────────────────────────┐
+│  入口层   inv CLI (Typer)  +  DASHBOARD.html (静态渲染)      │
+│          v3.0 新增：对话式意图路由层 (Intent Router)          │
+├─────────────────────────────────────────────────────────────┤
+│  业务层   workflow/  rules/  pricing/  reports/  skills/    │
+│          v3.0 新增：agent_tools/ (9 个 Skill 的后台工具链)    │
+├─────────────────────────────────────────────────────────────┤
+│  数据层   data/portfolio.db (18 表 + 3 视图)                 │
+│          config/*.yaml 仅放规则与目标，不再放状态            │
+└─────────────────────────────────────────────────────────────┘</pre>
+
+  <div class="info-box">
+    <strong>设计原则：</strong>config/*.yaml 只放规则与目标；状态（持仓、行情、告警、违规）全部入 DB；markdown 文件保留正文供人类阅读，frontmatter 由 CLI 反向生成。DASHBOARD.html 由 <code>inv dashboard render</code> 自动生成，不手动编辑。
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- 数据层架构                                                               -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<section class="section" id="arch-datalayer">
+  <h1>数据层架构</h1>
+  <p>所有业务状态持久化到 <code>data/portfolio.db</code>（SQLite）。数据流方向：</p>
+  <ul>
+    <li><strong>行情快照</strong>（<code>inv snapshot pull</code>）→ quotes / holdings / alerts 表</li>
+    <li><strong>交易记录</strong>（<code>inv trade log/apply</code>）→ trades / holdings 表</li>
+    <li><strong>论点评分</strong>（<code>inv thesis sync/score</code>）→ theses / thesis_scores 表</li>
+    <li><strong>因果分析</strong>（<code>inv causal daily</code>）→ news_signals / chain_assessments / node_activation_log 表</li>
+    <li><strong>Dashboard 渲染</strong> 从 DB 读取，不依赖文件系统</li>
+  </ul>
+
+  <h3>特殊资产处理：限制性股票（RSU）</h3>
+  <p>RSU 等非常规资产不纳入三档架构，不参与日常再平衡计算。减持所得直接进入 A/B/C 再平衡流程。以美团RSU为例，采用<strong>两阶段再平衡框架</strong>：</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>阶段</th><th>时间</th><th>处理方式</th></tr>
+      <tr><td>第一阶段</td><td>当前 → 2027-11</td><td>美团RSU 排除在再平衡基准之外；减持所得按 30%→A / 70%→B 分配</td></tr>
+      <tr><td>第二阶段</td><td>2027-11 之后</td><td>第二档完成后，RSU 资产重新纳入整体计算，重设再平衡基准</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- 数据库表与视图                                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<section class="section" id="arch-db">
+  <h1>数据库表与视图</h1>
+
+  <h2>核心业务表（v2 基础，11 张）</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>表</th><th>用途</th></tr>
+      <tr><td><code>instruments</code></td><td>标的主表（A/H/ETF/RSU/Cash），主键 (code, market)</td></tr>
+      <tr><td><code>holdings</code></td><td>持仓时序（每日 effective_date）</td></tr>
+      <tr><td><code>quotes</code></td><td>行情时序（替代 portfolio_ts.csv）</td></tr>
+      <tr><td><code>etf_targets</code></td><td>ETF 终态目标占比</td></tr>
+      <tr><td><code>decisions</code></td><td>决策文档元数据（每个 decision_*.md 一条）</td></tr>
+      <tr><td><code>stop_rules</code></td><td>止损止盈/网格规则（GRID_SELL/GRID_BUY/HARD_DD）</td></tr>
+      <tr><td><code>trades</code></td><td>实际成交记录</td></tr>
+      <tr><td><code>alerts</code></td><td>告警事件流（去重：date+type+code）</td></tr>
+      <tr><td><code>theses / thesis_scores</code></td><td>thesis 元信息 + 五支柱评分历史</td></tr>
+      <tr><td><code>candidates</code></td><td>选股候选池（akshare 扫描输出）</td></tr>
+      <tr><td><code>trade_reviews / review_errors</code></td><td>交易复盘 + 错误归因（12 种固定 enum）</td></tr>
+      <tr><td><code>rule_breaches</code></td><td>风控违规归档</td></tr>
+    </table>
+  </div>
+
+  <h2>因果推理模块（v2.1 新增，7 张）</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>表</th><th>用途</th></tr>
+      <tr><td><code>causal_nodes</code></td><td>因果节点（地缘/宏观/行业/持仓四层）</td></tr>
+      <tr><td><code>causal_edges</code></td><td>已审批的因果有向边（含五维评分）</td></tr>
+      <tr><td><code>pending_edges</code></td><td>LLM 发现、待审批的因果边</td></tr>
+      <tr><td><code>causal_review_log</code></td><td>审批操作日志</td></tr>
+      <tr><td><code>news_signals</code></td><td>每日新闻信号（去重 + LLM 分类后）</td></tr>
+      <tr><td><code>node_activation_log</code></td><td>节点激活度变化历史</td></tr>
+      <tr><td><code>chain_assessments</code></td><td>影响链评估结果（仅 L3 及以上写入）</td></tr>
+    </table>
+  </div>
+
+  <h2>v3.0 新增表（15 张）</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>表</th><th>用途</th><th>对应 Skill</th></tr>
+      <tr><td><code>user_profile</code></td><td>投资画像</td><td>① Onboarding</td></tr>
+      <tr><td><code>goals</code></td><td>投资目标</td><td>① Onboarding</td></tr>
+      <tr><td><code>asset_inventory</code></td><td>资产清单</td><td>① Onboarding</td></tr>
+      <tr><td><code>risk_metrics</code></td><td>风险指标快照</td><td>⑥ 风险量化</td></tr>
+      <tr><td><code>correlation_matrix</code></td><td>持仓相关性矩阵</td><td>⑥ 风险量化</td></tr>
+      <tr><td><code>risk_contribution</code></td><td>各持仓风险贡献</td><td>⑥ 风险量化</td></tr>
+      <tr><td><code>performance_attribution</code></td><td>业绩归因记录</td><td>⑧ 业绩归因</td></tr>
+      <tr><td><code>benchmark_quotes</code></td><td>基准行情缓存（沪深300）</td><td>⑧ 业绩归因</td></tr>
+      <tr><td><code>task_calendar</code></td><td>投资任务日历</td><td>⑤ 投资日历</td></tr>
+      <tr><td><code>task_log</code></td><td>任务操作日志</td><td>⑤ 投资日历</td></tr>
+      <tr><td><code>cost_model</code></td><td>交易费率配置</td><td>⑦ 交易成本</td></tr>
+      <tr><td><code>trade_cost_log</code></td><td>交易成本记录</td><td>⑦ 交易成本</td></tr>
+      <tr><td><code>behavior_flags</code></td><td>行为偏差记录</td><td>⑨ 行为约束</td></tr>
+      <tr><td><code>decision_journal</code></td><td>决策日志</td><td>⑨ 行为约束</td></tr>
+      <tr><td><code>custom_strategies</code></td><td>自定义筛选策略</td><td>③ 对话式选股</td></tr>
+    </table>
+  </div>
+
+  <h2>3 个核心视图</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>视图</th><th>用途</th></tr>
+      <tr><td><code>v_portfolio_snapshot</code></td><td>当前持仓 + 最新行情，单一计算口径（解决分母不一致问题）</td></tr>
+      <tr><td><code>v_compliance_status</code></td><td>每条违规的当前比例 vs 阈值</td></tr>
+      <tr><td><code>v_pending_executions</code></td><td>待执行清单（dashboard 直接消费）</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- 迁移脚本说明                                                              -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<section class="section" id="arch-migrations">
+  <h1>迁移脚本说明</h1>
+  <p>所有迁移脚本位于 <code>migrations/</code> 目录，通过 <code>inv migrate run</code> 幂等执行。脚本按编号顺序执行，每个脚本包含 CREATE TABLE IF NOT EXISTS 和 ALTER TABLE 等幂等语句。</p>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>编号</th><th>文件名</th><th>内容</th></tr>
+      <tr><td>01–08</td><td>v2 基础迁移</td><td>核心业务表（instruments/holdings/quotes/etf_targets/decisions/stop_rules/trades/alerts/theses/candidates/reviews/rule_breaches）</td></tr>
+      <tr><td>09–13</td><td>v2.1 因果模块</td><td>causal_nodes/causal_edges/pending_edges/causal_review_log/news_signals/node_activation_log/chain_assessments</td></tr>
+      <tr><td>14</td><td><code>14_onboarding.sql</code></td><td>user_profile / goals / asset_inventory</td></tr>
+      <tr><td>15</td><td><code>15_risk.sql</code></td><td>risk_metrics / correlation_matrix / risk_contribution</td></tr>
+      <tr><td>16</td><td><code>16_attribution.sql</code></td><td>performance_attribution / benchmark_quotes</td></tr>
+      <tr><td>18</td><td><code>18_phase7.sql</code></td><td>task_calendar / task_log / cost_model / trade_cost_log / behavior_flags / decision_journal / custom_strategies</td></tr>
+    </table>
+  </div>
+
+  <h3>数据对账</h3>
+  <pre>inv migrate verify   # 5 项数据对账 → data/migration_diff_report.md</pre>
+  <p>对账项包括：holdings vs trades 一致性、theses frontmatter vs DB 一致性、决策文件 vs decisions 表一致性、告警去重检查、持仓快照计算口径验证。差异 > 0.01% 报错。</p>
+
+  <h3>数据导出</h3>
+  <pre>inv data tables         # 列出所有 DB 表与视图
+inv data export csv     # 将 DB 反向导出为 CSV（灾难恢复 / 人工审阅）</pre>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- CLI 命令参考                                                              -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<section class="section" id="cli-core">
+  <h1>核心 CLI 命令参考</h1>
+  <p>所有操作通过 <code>inv</code> 统一入口执行。环境：<code>.venv/bin/inv</code>（必须使用 venv 内路径）。安装：<code>pip install -e ".[dev]"</code>。</p>
+
+  <div class="script-grid">
+    <div class="script-card">
+      <div class="script-name">inv snapshot pull</div>
+      <div class="script-desc">每日 <strong>15:15</strong> 运行。拉取日终行情（腾讯财经 API），写入 holdings + quotes 表，触发 8 项告警检查，去重写入 alerts 表。</div>
+      <div class="script-cmd">inv snapshot pull</div>
+      <div class="script-output">→ DB: quotes / holdings / alerts 更新 → reviews/daily/YYYY-MM-DD.md</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv dashboard render</div>
+      <div class="script-desc">从 DB 读取持仓、告警、待执行清单、违规状态，生成 DASHBOARD.html。支持 <code>--mode pre-market / post-market</code>。</div>
+      <div class="script-cmd">inv dashboard render
+inv dashboard render --mode pre-market
+inv dashboard render --mode post-market</div>
+      <div class="script-output">→ DASHBOARD.html</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv exec monitor</div>
+      <div class="script-desc">检查所有 armed 状态的 stop_rules，对比最新行情，触发则写入 alerts 表并推送通知。不自动下单，保留人工拍板。</div>
+      <div class="script-cmd">inv exec monitor</div>
+      <div class="script-output">→ DB: alerts 更新（triggered stop_rules）</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv trade decision</div>
+      <div class="script-desc">交易决策管理。<code>new</code> 创建决策记录 + stub markdown；<code>list</code> 查看冷静期状态；<code>show ID</code> 查看详情。</div>
+      <div class="script-cmd">inv trade decision new --code 600219 --type REDUCE
+inv trade decision list
+inv trade decision show 3</div>
+      <div class="script-output">→ DB: decisions 表 → trades/decision_NNN.md</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv trade log / apply</div>
+      <div class="script-desc"><code>log</code> 记录实际成交；<code>apply</code> 将成交反向更新 holdings 表，保持持仓数据与实际一致。</div>
+      <div class="script-cmd">inv trade log --decision-id 3 --shares 6700 --price 5.41
+inv trade apply 3</div>
+      <div class="script-output">→ DB: trades / holdings 更新</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv trade stop</div>
+      <div class="script-desc">止损止盈规则管理。<code>add</code> 添加规则（GRID_SELL/GRID_BUY/HARD_DD）；<code>list</code> 查看所有 armed 规则及当前触发状态。</div>
+      <div class="script-cmd">inv trade stop add --decision-id 3 --type GRID_SELL --price 5.81
+inv trade stop list</div>
+      <div class="script-output">→ DB: stop_rules 表</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv thesis</div>
+      <div class="script-desc"><code>sync</code> 同步 theses/ 目录的 frontmatter 到 DB；<code>score</code> 写入月度评分；<code>stale</code> 列出超过更新周期的 thesis。</div>
+      <div class="script-cmd">inv thesis sync
+inv thesis score --code 600219 --score 3.27
+inv thesis stale</div>
+      <div class="script-output">→ DB: theses / thesis_scores 更新</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv candidate</div>
+      <div class="script-desc"><code>scan</code> 调用 akshare 扫描全市场候选池（hard/soft 过滤 + 合规检查）；<code>list</code> 查看候选池；<code>promote</code> 晋升为 IC Memo 研究对象。</div>
+      <div class="script-cmd">inv candidate scan --quick
+inv candidate list
+inv candidate promote 5</div>
+      <div class="script-output">→ DB: candidates 表</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv review</div>
+      <div class="script-desc"><code>log</code> 记录闭仓复盘（错误归因 12 种固定 enum）；<code>stats</code> 输出三月/六月错误频次统计，识别行为模式。</div>
+      <div class="script-cmd">inv review log --trade-id 5
+inv review stats</div>
+      <div class="script-output">→ DB: trade_reviews / review_errors 更新</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv migrate</div>
+      <div class="script-desc"><code>run</code> 执行迁移脚本（幂等）；<code>verify</code> 5 项数据对账，差异 > 0.01% 报错，输出 diff_report.md；<code>rollback</code> 删除 DB（危险！需确认）。</div>
+      <div class="script-cmd">inv migrate run
+inv migrate verify</div>
+      <div class="script-output">→ data/migration_diff_report.md</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv data</div>
+      <div class="script-desc"><code>tables</code> 列出 DB 所有表和视图；<code>export csv</code> 将 DB 反向导出为 CSV。</div>
+      <div class="script-cmd">inv data tables
+inv data export csv</div>
+      <div class="script-output">→ data/export/*.csv</div>
+    </div>
+  </div>
+
+  <h3>常见错误码（review log 使用）</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>错误码</th><th>含义</th></tr>
+      <tr><td><code>TIMING_ERROR</code></td><td>时机错误（买早了/卖晚了）</td></tr>
+      <tr><td><code>THESIS_BREAK</code></td><td>买入逻辑失效</td></tr>
+      <tr><td><code>OVERSIZE</code></td><td>超仓位上限</td></tr>
+      <tr><td><code>PANIC_SELL</code></td><td>恐慌卖出</td></tr>
+      <tr><td><code>FOMO_BUY</code></td><td>追高买入</td></tr>
+      <tr><td><code>NO_STOP_LOSS</code></td><td>未设止损</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- v3.0 新增命令组                                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<section class="section" id="cli-new">
+  <h1>v3.0 新增命令组</h1>
+  <div class="table-wrap">
+    <table>
+      <tr><th>命令组</th><th>主要命令</th><th>用途</th><th>对应 Skill</th></tr>
+      <tr><td><code>inv profile</code></td><td><code>set / show / reset</code></td><td>投资画像管理</td><td>① Onboarding</td></tr>
+      <tr><td><code>inv risk</code></td><td><code>compute / show</code></td><td>组合风险量化</td><td>⑥ 风险量化</td></tr>
+      <tr><td><code>inv attribution</code></td><td><code>compute / show</code></td><td>业绩归因</td><td>⑧ 业绩归因</td></tr>
+      <tr><td><code>inv calendar</code></td><td><code>show / add / done</code></td><td>投资日历</td><td>⑤ 投资日历</td></tr>
+      <tr><td><code>inv cost</code></td><td><code>calc</code></td><td>交易成本计算</td><td>⑦ 交易成本</td></tr>
+      <tr><td><code>inv behavior</code></td><td><code>check / log</code></td><td>行为约束</td><td>⑨ 行为约束</td></tr>
+      <tr><td><code>inv causal insight</code></td><td><code>--date / --code</code></td><td>因果洞察（零操作）</td><td>④ 因果归因</td></tr>
+      <tr><td><code>inv causal validate</code></td><td><code>ID --status confirmed/refuted</code></td><td>更新因果置信度</td><td>④ 因果归因</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- 因果推理 CLI 命令                                                         -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<section class="section" id="cli-causal">
+  <h1>因果推理 CLI 命令参考</h1>
+
+  <div class="script-grid">
+    <div class="script-card">
+      <div class="script-name">inv causal node add</div>
+      <div class="script-desc">添加因果节点，支持 6 种类型（MACRO/SECTOR/COMPANY/EVENT/SENTIMENT/INDICATOR）和 4 个层级（L0_geopolitical/L1_macro/L2_industry/L3_holding）。</div>
+      <div class="script-cmd">inv causal node add --name "中国PMI" --type MACRO --layer L1_macro</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv causal node list / show</div>
+      <div class="script-desc">列出节点（可按 layer/state/type 过滤）或查看单个节点详情。</div>
+      <div class="script-cmd">inv causal node list --layer L3_holding
+inv causal node show "WTI油价"</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv causal edge add</div>
+      <div class="script-desc">手动添加有向边，指定 5 维评分（d1~d5，范围 1–5）和传导方向（POSITIVE/NEGATIVE/BIDIRECTIONAL）。</div>
+      <div class="script-cmd">inv causal edge add --from "WTI油价" --to "能源-石油" --direction POSITIVE --d1 5 --d2 4 --d3 5 --d4 3 --d5 5</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv causal discover</div>
+      <div class="script-desc">通过 LLM 发现事件→持仓的因果路径，新节点和边写入 pending_edges 表待审批。</div>
+      <div class="script-cmd">inv causal discover --code 600219 --event "中国PMI超预期回升"
+inv causal discover-auto --volatility 5.0 --lookback 3</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv causal review</div>
+      <div class="script-desc">交互式审批 pending edges：approve/reject/modify/skip。支持单条命令行操作。</div>
+      <div class="script-cmd">inv causal review
+inv causal review approve 5
+inv causal review modify 3 --d1 4 --direction POSITIVE</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv causal scan</div>
+      <div class="script-desc">每日新闻信号扫描：抓取→去重→LLM 分类→写入 news_signals 表→更新节点激活度。</div>
+      <div class="script-cmd">inv causal scan
+inv causal scan --dry-run</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv causal lifecycle</div>
+      <div class="script-desc">应用激活衰减和生命周期状态迁移（active→dormant→archived）。review 查看最近 N 天状态变化的节点。</div>
+      <div class="script-cmd">inv causal lifecycle update
+inv causal lifecycle review --days 90</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv causal assess</div>
+      <div class="script-desc">评估今日信号对持仓的影响：路径搜索→影响计算→LLM 解读→持久化 L3+ 结果到 chain_assessments。</div>
+      <div class="script-cmd">inv causal assess
+inv causal assess --code 600219 --explain</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv causal graph</div>
+      <div class="script-desc">输出持仓的因果子图，支持 Mermaid 可视化或 JSON 格式。</div>
+      <div class="script-cmd">inv causal graph --code 600219 --format mermaid --hops 3</div>
+    </div>
+    <div class="script-card">
+      <div class="script-name">inv causal daily</div>
+      <div class="script-desc"><strong>每日一键流水线</strong>：scan → lifecycle update → assess，三步串联执行。</div>
+      <div class="script-cmd">inv causal daily
+inv causal daily --dry-run</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- 事件驱动因果推理（完整技术细节）                                              -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<section class="section" id="causal">
+  <h1>事件驱动因果推理</h1>
+  <p>v2.1 新增的因果推理子系统，将宏观事件、行业动态与持仓标的之间的<strong>因果关系建模为有向图</strong>，每日自动扫描新闻信号、更新节点激活度、评估影响链传导，最终在 Dashboard 中展示"影响链异动"。</p>
+
+  <div class="info-box"><strong>核心理念：</strong>市场不是随机波动的集合，而是由事件驱动的因果网络。一只股票涨跌的背后，是地缘冲突→大宗商品→行业成本→公司利润的逐级传导。causal 模块将这些传导链<strong>显式化、可量化、可追溯</strong>。</div>
+</section>
+
+<section class="section" id="causal-graph">
+  <h2>因果图谱结构</h2>
+  <p>图谱由<strong>节点（Node）</strong>和<strong>有向边（Edge）</strong>组成，按传导层级组织：</p>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>层级</th><th>含义</th><th>节点类型示例</th></tr>
+      <tr><td><code>L0_geopolitical</code></td><td>地缘政治事件</td><td>中东-军事冲突、中美贸易摩擦</td></tr>
+      <tr><td><code>L1_macro</code></td><td>宏观变量</td><td>WTI油价、美元指数DXY、中国PMI</td></tr>
+      <tr><td><code>L2_industry</code></td><td>行业/板块</td><td>有色金属-铝、能源-石油、新能源-光伏</td></tr>
+      <tr><td><code>L3_holding</code></td><td>持仓标的</td><td>600219-南山铝业、000858-五粮液</td></tr>
+    </table>
+  </div>
+
+  <h3>5 维边评分体系</h3>
+  <p>每条因果边由 5 个维度综合评分，加权计算边强度：</p>
+  <pre>strength = d1 × 0.30 + d2 × 0.25 + d3 × 0.25 + d4 × 0.10 + d5 × 0.10</pre>
+  <div class="table-wrap">
+    <table>
+      <tr><th>维度</th><th>含义</th><th>范围</th><th>权重</th></tr>
+      <tr><td><code>d1_directness</code></td><td>直接性：A→B 因果关系是否直接</td><td>1–5</td><td>30%</td></tr>
+      <tr><td><code>d2_elasticity</code></td><td>弹性：A 变动 1%，B 变动多少</td><td>1–5</td><td>25%</td></tr>
+      <tr><td><code>d3_consistency</code></td><td>一致性：历史中该关系是否稳定</td><td>1–5</td><td>25%</td></tr>
+      <tr><td><code>d4_speed</code></td><td>速度：传导时滞多长</td><td>1–5</td><td>10%</td></tr>
+      <tr><td><code>d5_uniqueness</code></td><td>独特性：该传导链是否独立于其他因素</td><td>1–5</td><td>10%</td></tr>
+    </table>
+  </div>
+
+  <h3>节点生命周期</h3>
+  <p>每个节点维护一个<strong>激活分数</strong>（activation_score），根据新闻信号动态变化：</p>
+  <pre>new_activation = max(0, old_activation × e<sup>−0.03×days</sup> + |signal_strength| × 20)</pre>
+  <p>根据激活分数，节点在三种状态间迁移：</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>状态</th><th>条件</th><th>含义</th></tr>
+      <tr><td><code>active</code></td><td>activation ≥ 5</td><td>活跃，参与路径搜索和影响评估</td></tr>
+      <tr><td><code>dormant</code></td><td>activation &lt; 5 持续 14 天</td><td>休眠，暂停参与传播</td></tr>
+      <tr><td><code>archived</code></td><td>dormant 持续 90 天</td><td>归档，需重新激活才能恢复</td></tr>
+    </table>
+  </div>
+</section>
+
+<section class="section" id="causal-pipeline">
+  <h2>每日因果流水线</h2>
+  <p>每日盘后运行 <code>inv causal daily</code>，自动执行三步流水线：</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-title">信号扫描</div>
+      <div class="step-desc">抓取新闻→去重→LLM 分类→写入 news_signals 表</div>
+      <div class="step-cmd">inv causal scan</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-title">生命周期更新</div>
+      <div class="step-desc">衰减旧节点激活度、迁移 dormant/archived 状态</div>
+      <div class="step-cmd">inv causal lifecycle update</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-title">影响评估</div>
+      <div class="step-desc">查找信号→持仓的传导路径，计算影响分数，LLM 生成解读</div>
+      <div class="step-cmd">inv causal assess</div>
+    </div>
+  </div>
+
+  <h3>路径影响计算公式</h3>
+  <p>对每条从事件到持仓的传导路径，计算复合影响：</p>
+  <pre>impact = signal_strength × Π(strength<sub>i</sub> / 5) × sign(direction<sub>i</sub>) × 0.85<sup>(n−1)</sup></pre>
+  <p>其中：</p>
+  <ul>
+    <li><code>signal_strength</code> — 新闻信号的强度（-10 到 +10）</li>
+    <li><code>strength<sub>i</sub></code> — 路径上每条边的五维加权分数</li>
+    <li><code>sign(direction<sub>i</sub>)</code> — 方向符号（正向=+1，负向=-1）</li>
+    <li><code>0.85<sup>(n−1)</sup></code> — 每增加一跳，传导衰减 15%（跳数越多，传导越弱）</li>
+  </ul>
+  <p>多路径影响聚合后，按阈值分级：</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>等级</th><th>阈值</th><th>含义</th></tr>
+      <tr><td><code>L5</code></td><td>|impact| ≥ 0.50</td><td>强影响，建议立即评估 thesis</td></tr>
+      <tr><td><code>L4</code></td><td>|impact| ≥ 0.30</td><td>中等影响，建议加入复盘清单</td></tr>
+      <tr><td><code>L3</code></td><td>|impact| ≥ 0.15</td><td>弱影响，建议观察</td></tr>
+      <tr><td>L1–L2</td><td>&lt; 0.15</td><td>可忽略，不写入 chain_assessments</td></tr>
+    </table>
+  </div>
+  <p>只有 L3 及以上的评估结果才会写入 <code>chain_assessments</code> 表并在 Dashboard 展示。</p>
+</section>
+
+<section class="section" id="causal-review">
+  <h2>图谱发现与审批</h2>
+  <p>因果图谱通过两种方式扩展：</p>
+
+  <h3>LLM 自动发现</h3>
+  <p>当持仓出现异常波动时，让 LLM 分析可能的事件→标的因果路径：</p>
+  <pre># 手动触发：指定事件和持仓
+inv causal discover --code 600219 --event "中国PMI超预期回升"
+
+# 自动扫描：检测近期波动 > 阈值的持仓
+inv causal discover-auto --volatility 5.0 --lookback 3</pre>
+  <p>LLM 会提出新的因果节点和边，以 <strong>pending_edges</strong> 形式暂存，需人工审批后才能加入图谱。</p>
+
+  <h3>人工审批流程</h3>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-title">查看待审批</div><div class="step-desc">列出所有 pending edges</div><div class="step-cmd">inv causal review list</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-title">交互式审批</div><div class="step-desc">逐条 approve/reject/modify</div><div class="step-cmd">inv causal review</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-title">单条操作</div><div class="step-desc">快速 approve/reject/modify 指定 ID</div><div class="step-cmd">inv causal review approve 5</div></div>
+  </div>
+  <p>审批人可修改 5 维评分和方向，系统记录所有审批日志到 <code>causal_review_log</code> 表。</p>
+
+  <h3>Dashboard 集成</h3>
+  <p>评估结果直接渲染到 Dashboard 的<strong>"影响链异动"</strong>区块：</p>
+  <ul>
+    <li>按 |impact_score| 降序排列</li>
+    <li>颜色编码：<span style="color:#c53030;font-weight:700">L5 红色</span> / <span style="color:#d69e2e;font-weight:700">L4 黄色</span> / <span style="color:#2b6cb0;font-weight:700">L3 蓝色</span></li>
+    <li>显示关键传导链节点序列、信号数量、建议动作</li>
+    <li>点击行展开 LLM 生成的详细解读</li>
+    <li>无活跃影响链时显示"今日无活跃影响链"空状态</li>
+  </ul>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- 配置文件说明                                                              -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<section class="section" id="config">
+  <h1>配置文件说明</h1>
+  <p>v2 原则：<strong>config/*.yaml 只放规则与目标，状态全部入 DB</strong>。持仓、行情、告警、违规不再存 CSV/YAML。</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>文件</th><th>用途</th><th>修改频率</th><th>注意事项</th></tr>
+      <tr>
+        <td><code>config/rules.yaml</code></td>
+        <td>风控铁律核心配置，所有告警检查的规则来源</td>
+        <td>季度回顾</td>
+        <td>修改需 7 天冷静期 + 书面理由；存在 active_breaches 时禁止提高阈值</td>
+      </tr>
+      <tr>
+        <td><code>config/capital.yaml</code></td>
+        <td>资金配置参数：再平衡基准、各档目标金额、RSU 信息</td>
+        <td>资产变动时</td>
+        <td>rebalance_base_capital 需手动维护；RSU 减持后更新 meituan_rsu_value</td>
+      </tr>
+      <tr>
+        <td><code>config/screening_rules.yaml</code></td>
+        <td>选股筛选规则：universe / hard_filters / soft_filters / compliance_check</td>
+        <td>季度回顾</td>
+        <td>供 <code>inv candidate scan</code> 使用；hard_filters 不通过直接排除</td>
+      </tr>
+      <tr>
+        <td><code>config/execution_tracker.yaml</code></td>
+        <td>待执行事项状态追踪（dashboard 消费）</td>
+        <td>每次执行后</td>
+        <td>手动更新 status 字段；未来逐步迁移到 DB executions 表</td>
+      </tr>
+      <tr>
+        <td><code>config/macro.md</code></td>
+        <td>当前宏观判断，供 ic-memo 和 idea-generation 参考</td>
+        <td>季度更新</td>
+        <td>新建仓必须与当前宏观判断一致</td>
+      </tr>
+    </table>
+  </div>
+
+  <h3>规则修改约束（面向维护者）</h3>
+  <ul style="font-size:13px;color:#4a5568;padding-left:20px;line-height:2">
+    <li>修改 <code>rules.yaml</code> 需经 <strong>7 天冷静期</strong> + 书面理由</li>
+    <li>存在 active_breaches 时，禁止提高违规相关阈值</li>
+    <li>禁止为亏损个股单独创建豁免</li>
+    <li>禁止在亏损状态下提高单股仓位上限</li>
+    <li>每季度回顾一次铁律合理性</li>
+  </ul>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- 日常工作流时间表                                                           -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<section class="section" id="workflow">
+  <h1>日常工作流时间表</h1>
+  <div class="info-box"><strong>执行时间设计原则：</strong>所有时间点以 A 股收盘（15:00）为核心锚点。收盘后执行快照可确保日终价格已确定，告警不因盘中波动误触发；周一开盘前读简报可在市场噪音介入前完成信息摄入；月末/季末收盘后执行更新可保证数据完整性。</div>
+
+  <h3>每日（5–10 分钟）· 盘前 09:00 + 盘后 15:15</h3>
+  <p style="font-size:13px;color:#718096">A 股 09:30 开盘，盘前 09:00 运行 Dashboard 查看今日待办。15:00 收盘后等待 15 分钟让数据源完成日终结算后执行快照。若持有港股，可推迟至 16:15（港股 16:00 收盘）。</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">09:00</div>
+      <div class="step-title">盘前战情室</div>
+      <div class="step-desc">查看今日待办、持仓风险、触发条件</div>
+      <div class="step-cmd">inv dashboard render --mode pre-market</div>
+      <div class="step-output">→ DASHBOARD.html（盘前模式）</div>
+    </div>
+    <div class="step">
+      <div class="step-num">09:15</div>
+      <div class="step-title">盘中执行</div>
+      <div class="step-desc">按计划执行交易，成交后记录</div>
+      <div class="step-cmd">inv trade log --shares X --price Y</div>
+      <div class="step-output">→ 成交记录写入 DB</div>
+    </div>
+    <div class="step step-waiting">
+      <div class="step-num">15:00</div>
+      <div class="step-title">A 股收盘</div>
+      <div class="step-desc">等待日终价格确定，数据源结算</div>
+      <div class="step-no-cmd">— 等待 15 min —</div>
+    </div>
+    <div class="step">
+      <div class="step-num">15:15</div>
+      <div class="step-title">运行每日快照</div>
+      <div class="step-desc">拉取日终行情，写入 DB，触发告警</div>
+      <div class="step-cmd">inv snapshot pull</div>
+      <div class="step-output">→ reviews/daily/YYYY-MM-DD.md</div>
+    </div>
+    <div class="step">
+      <div class="step-num">15:20</div>
+      <div class="step-title">盘后战情室</div>
+      <div class="step-desc">查看持仓进度、论点状态</div>
+      <div class="step-cmd">inv dashboard render --mode post-market</div>
+      <div class="step-output">→ DASHBOARD.html（盘后模式）</div>
+    </div>
+    <div class="step">
+      <div class="step-num">15:25</div>
+      <div class="step-title">记录情绪</div>
+      <div class="step-desc">有交易冲动时创建决策，进入冷静期</div>
+      <div class="step-cmd-optional">inv trade decision new</div>
+    </div>
+  </div>
+
+  <h3>每周（30 分钟，周一）· 09:00 执行</h3>
+  <pre>inv thesis sync
+inv thesis stale
+inv trade decision list
+inv exec monitor
+inv dashboard render && open DASHBOARD.html</pre>
+
+  <h3>每月末（2 小时）· 最后一个交易日 15:30 执行</h3>
+  <pre>inv thesis score
+inv snapshot pull
+inv candidate scan</pre>
+
+  <h3>每季度末（4–6 小时）· 季末最后一个交易日 15:30 执行</h3>
+  <pre>inv review stats
+inv migrate verify</pre>
+
+  <h3>执行时间汇总</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>频率</th><th>执行时间</th><th>命令</th><th>耗时</th></tr>
+      <tr><td>每日盘前（工作日）</td><td><strong>09:00</strong></td><td>inv dashboard render --mode pre-market</td><td>2 分钟</td></tr>
+      <tr><td>每日盘后（工作日）</td><td><strong>15:15</strong></td><td>inv snapshot pull + inv dashboard render</td><td>5–10 分钟</td></tr>
+      <tr><td>每周一</td><td><strong>09:00</strong></td><td>inv thesis sync + inv exec monitor</td><td>30 分钟</td></tr>
+      <tr><td>每月末最后交易日</td><td><strong>15:30</strong></td><td>inv thesis score + inv candidate scan</td><td>2 小时</td></tr>
+      <tr><td>每季末最后交易日</td><td><strong>15:30</strong></td><td>月度流程 + inv review stats + inv migrate verify</td><td>4–6 小时</td></tr>
+      <tr><td>按需</td><td>任意时间</td><td>inv exec monitor</td><td>1 分钟</td></tr>
+      <tr><td>按需</td><td>任意时间</td><td>inv trade decision new / inv trade apply</td><td>5 分钟</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- 快速上手                                                                  -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<section class="section" id="quickstart">
+  <h1>环境要求与快速上手</h1>
+
+  <h3>环境依赖</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>依赖</th><th>版本</th><th>说明</th></tr>
+      <tr><td>Python</td><td>3.11+</td><td>推荐使用 uv 或 venv 管理</td></tr>
+      <tr><td>SQLite3</td><td>内置</td><td>Python 标准库，无需额外安装</td></tr>
+      <tr><td>Typer / Rich</td><td>随包安装</td><td><code>pip install -e ".[dev]"</code> 一键安装所有依赖</td></tr>
+      <tr><td>网络</td><td>—</td><td>需能访问 qt.gtimg.cn（腾讯财经 API）</td></tr>
+    </table>
+  </div>
+
+  <h3>首次运行（5 步）</h3>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-title">克隆仓库</div><div class="step-desc">git clone 到本地</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-title">安装依赖</div><div class="step-desc">pip install -e ".[dev]"</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-title">初始化 DB</div><div class="step-desc">inv migrate run（幂等，可重复执行）</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-title">拉取行情</div><div class="step-desc">inv snapshot pull</div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-title">查看战情室</div><div class="step-desc">inv dashboard render && open DASHBOARD.html</div></div>
+  </div>
+  <pre>pip install -e ".[dev]"
+inv migrate run
+inv snapshot pull
+inv dashboard render && open DASHBOARD.html</pre>
+
+  <h3>常见问题</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>问题</th><th>原因</th><th>解决方案</th></tr>
+      <tr><td>inv 命令找不到</td><td>未安装包或未激活 venv</td><td><code>pip install -e ".[dev]"</code>，确认 venv 已激活</td></tr>
+      <tr><td>行情获取失败</td><td>网络问题或 API 限流</td><td>检查网络；重试 <code>inv snapshot pull</code></td></tr>
+      <tr><td>迁移验证失败</td><td>源文件与 DB 数据不一致</td><td>查看 data/migration_diff_report.md，按提示修复</td></tr>
+      <tr><td>港股价格为 None</td><td>代码格式错误</td><td>instruments 表中港股 market 填 HK，code 填 5 位数字（如 02015）</td></tr>
+      <tr><td>stop_rules 重复</td><td>inv migrate run 执行了多次</td><td>迁移脚本已有去重保护；如已重复，用 <code>inv data tables</code> 检查后手动清理</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- AI Skills 技术说明                                                        -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<section class="section" id="skills-tech">
+  <h1>AI Skills 技术说明</h1>
+  <p>v2 的 5 个 Claude 提示词模板存放于 <code>prompts/</code> 目录（<code>/skill-name</code> 触发）。v3.0 新增意图路由层，将用户的自然语言输入自动匹配到对应的后台工具链，Skill 模板内部调用 <code>inv</code> 命令完成实际数据操作。</p>
+
+  <h3>v2 旧版 Skills（/skill-name 触发）</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Skill</th><th>触发时机</th><th>说明</th><th>对应 v3.0 能力</th></tr>
+      <tr><td><code>/thesis-tracker</code></td><td>每月末 / 财报后 / 回撤 ≥15%</td><td>五维度评分（业务质量、竞争优势、管理层、估值、风险）</td><td>② 仓位巡检</td></tr>
+      <tr><td><code>/comps-analysis</code></td><td>买入前 / 每季度</td><td>估值横向对比（PE/PB/PS/EV-EBITDA），与同业可比公司对比</td><td>③ 对话式选股</td></tr>
+      <tr><td><code>/earnings-analysis</code></td><td>财报发布后 48h</td><td>解读财报关键指标，评估是否触发 thesis 更新</td><td>②/④</td></tr>
+      <tr><td><code>/ic-memo</code></td><td>新建仓前（硬性）</td><td>买入决策备忘录，七反人性问题，三种情景目标价</td><td>⑨ 行为约束</td></tr>
+      <tr><td><code>/idea-generation</code></td><td>每月</td><td>候选池扫描与创意生成</td><td>③ 对话式选股</td></tr>
+    </table>
+  </div>
+
+  <div class="info-box">
+    <strong>v3.0 兼容性说明：</strong>旧版 <code>/skill-name</code> 触发方式仍然可用。v3.0 对话式交互是新增的上层入口，底层仍然调用相同的 <code>inv</code> 命令完成数据操作。所有 <code>inv</code> 命令在 v3.0 中保持不变。
+  </div>
+</section>
+
+<div class="footer">
+  AI 驱动投资管理系统 · v3.0 · 技术架构与开发者文档 · 生成于 2026-05-30<br>
+  用户使用手册请参阅 <a href="whitepaper.html" style="color:#2d3748">docs/whitepaper.html</a>
+</div>
+</main>
+
+<script>
+const sections = document.querySelectorAll('.section');
+const navLinks = document.querySelectorAll('#sidebar a');
+window.addEventListener('scroll', () => {
+  let cur = '';
+  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 100) cur = s.id; });
+  navLinks.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + cur);
+  });
+});
+</script>
+</body>
+</html>

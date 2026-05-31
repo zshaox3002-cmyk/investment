@@ -190,6 +190,93 @@ def run(db_path=None) -> bool:
     lines.append(f"- DB v_portfolio_snapshot uses live quotes / excl-D total: {_fmt_pct(db_c_ratio)}")
     lines.append(f"- Resolution: DB is the canonical source. rules.yaml base is a snapshot.\n")
 
+    # ── Check 7: Phase 4 risk tables exist ────────────────────────────────
+    lines.append("## Check 7: Phase 4 Risk Tables\n")
+    risk_tables = ["risk_metrics", "correlation_matrix", "risk_contribution"]
+    missing_risk = []
+    for tbl in risk_tables:
+        exists = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tbl,)
+        ).fetchone()
+        if not exists:
+            missing_risk.append(tbl)
+    if missing_risk:
+        all_ok = False
+        lines.append(f"- Missing tables: {', '.join(missing_risk)} → ⚠️ Run `inv migrate run`")
+    else:
+        lines.append(f"- Tables present: {', '.join(risk_tables)} → ✅ OK")
+    lines.append("")
+
+    # ── Check 6: Phase 2 onboarding tables exist ──────────────────────────
+    lines.append("## Check 6: Phase 2 Onboarding Tables\n")
+    required_tables = ["user_profile", "goals", "asset_inventory"]
+    missing = []
+    for tbl in required_tables:
+        exists = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tbl,)
+        ).fetchone()
+        if not exists:
+            missing.append(tbl)
+    if missing:
+        all_ok = False
+        lines.append(f"- Missing tables: {', '.join(missing)} → ⚠️ Run `inv migrate run`")
+    else:
+        lines.append(f"- Tables present: {', '.join(required_tables)} → ✅ OK")
+    lines.append("")
+
+    # ── Check 8: Phase 5 attribution tables exist ──────────────────────────
+    lines.append("## Check 8: Phase 5 Attribution Tables\n")
+    attr_tables = ["performance_attribution", "benchmark_quotes"]
+    missing_attr = []
+    for tbl in attr_tables:
+        exists = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tbl,)
+        ).fetchone()
+        if not exists:
+            missing_attr.append(tbl)
+    if missing_attr:
+        all_ok = False
+        lines.append(f"- Missing tables: {', '.join(missing_attr)} → ⚠️ Run `inv migrate run`")
+    else:
+        lines.append(f"- Tables present: {', '.join(attr_tables)} → ✅ OK")
+    lines.append("")
+
+    # ── Check 9: Phase 6 causal_ext columns exist ──────────────────────────
+    lines.append("## Check 9: Phase 6 Causal Extension Columns\n")
+    causal_ext_cols = ["validation_status", "revision_log", "scope_layer", "credibility_tier"]
+    existing_cols = {
+        row[1]
+        for row in conn.execute("PRAGMA table_info(chain_assessments)").fetchall()
+    }
+    missing_cols = [c for c in causal_ext_cols if c not in existing_cols]
+    if missing_cols:
+        all_ok = False
+        lines.append(f"- Missing columns in chain_assessments: {', '.join(missing_cols)} → ⚠️ Run `inv migrate run`")
+    else:
+        lines.append(f"- Columns present: {', '.join(causal_ext_cols)} → ✅ OK")
+    lines.append("")
+
+    # ── Check 10: Phase 7 tables exist ────────────────────────────────────
+    lines.append("## Check 10: Phase 7 Tables\n")
+    phase7_tables = [
+        "task_calendar", "task_log", "custom_strategies",
+        "cost_model", "trade_cost_log",
+        "behavior_flags", "decision_journal",
+    ]
+    missing_p7 = []
+    for tbl in phase7_tables:
+        exists = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tbl,)
+        ).fetchone()
+        if not exists:
+            missing_p7.append(tbl)
+    if missing_p7:
+        all_ok = False
+        lines.append(f"- Missing tables: {', '.join(missing_p7)} → ⚠️ Run `inv migrate run`")
+    else:
+        lines.append(f"- Tables present: {len(phase7_tables)} Phase 7 tables → ✅ OK")
+    lines.append("")
+
     conn.close()
 
     # Write report

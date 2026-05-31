@@ -10,6 +10,7 @@ from investment.core.db import init_db
 from investment.migration import (
     m01, m02, m03, m04, m05, m06, m07, m08,
 )
+from investment.migration import _09_causal_ext as m09
 
 
 def run_all(db_path=None) -> dict[str, int]:
@@ -26,6 +27,7 @@ def run_all(db_path=None) -> dict[str, int]:
         ("06_load_alerts",            m06.run),
         ("07_load_executions",        m07.run),
         ("08_load_breaches",          m08.run),
+        ("09_causal_ext",             m09.run),
     ]
 
     results = {}
