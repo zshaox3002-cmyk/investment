@@ -1,0 +1,38 @@
+# LLM configuration for AI-powered investment analysis
+# API keys: set env variables (never commit to git)
+#   Anthropic → ANTHROPIC_API_KEY
+#   DeepSeek  → DEEPSEEK_API_KEY
+#   OpenAI    → OPENAI_API_KEY
+
+default_model: deepseek-chat
+
+models:
+  deepseek-chat:
+    provider: deepseek
+    model_id: deepseek-chat
+    base_url: https://api.deepseek.com/v1
+    max_tokens: 4096
+    temperature: 0.3
+
+  deepseek-reasoner:
+    provider: deepseek
+    model_id: deepseek-reasoner
+    base_url: https://api.deepseek.com/v1
+    max_tokens: 8192
+    temperature: 0.3
+
+  claude-sonnet-4-5:
+    provider: anthropic
+    model_id: claude-sonnet-4-5-20251001
+    max_tokens: 4096
+    temperature: 0.3
+
+  claude-opus-4-7:
+    provider: anthropic
+    model_id: claude-opus-4-7-20250610
+    max_tokens: 8192
+    temperature: 0.3
+
+retry:
+  max_retries: 3
+  temperatures: [0.3, 0.1, 0.0]

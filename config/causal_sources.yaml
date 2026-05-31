@@ -1,0 +1,39 @@
+# Causal news sources configuration
+# Enable/disable sources per environment
+
+sources:
+  cailianshe:
+    enabled: true
+    type: akshare
+    description: "财联社 7×24 快讯"
+
+  wallstreetcn:
+    enabled: false
+    type: rss
+    url: "https://wallstreetcn.com/rss"
+    description: "华尔街见闻 RSS"
+
+  bloomberg:
+    enabled: false
+    type: rss
+    url: ""
+    description: "Bloomberg RSS (requires subscription)"
+
+  reuters:
+    enabled: false
+    type: rss
+    url: ""
+    description: "Reuters RSS"
+
+# Batch processing
+batch:
+  max_articles_per_source: 50
+  min_confidence: 0.5
+  max_nodes_per_article: 5
+
+# Activation decay
+activation:
+  decay_rate: 0.03         # per day exponential decay
+  signal_weight_mult: 20   # abs(signal_strength) * multiplier
+  dormant_after_days: 30   # no signal for N days → dormant
+  archive_after_days: 180  # dormant for N days → archived

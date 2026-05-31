@@ -1,4 +1,0 @@
-code,type,name,balance,annual_rate,current_value,gain_loss,position_pct,status,notes
-CASH,现金,活期存款,421023,0.00%,421023,0,9.77%,已补充,银行活期账户
-ZGYQ,债券,中银国有企业债债卷C,146000,3.50%,146000,0,3.40%,已补充,短期债券基金
-MTRSU,股权,美团RSU,37000,0.00%,3009950,0,70.06%,已补充,美团员工股权激励（D档）
