@@ -108,9 +108,9 @@ class TestRouteWithMessage:
 
 
 class TestListSkills:
-    def test_returns_nine_skills(self):
+    def test_returns_fourteen_skills(self):
         skills = list_skills()
-        assert len(skills) == 9
+        assert len(skills) == 14
 
     def test_all_have_required_fields(self):
         for s in list_skills():
@@ -129,6 +129,8 @@ class TestListSkills:
         expected = {
             "onboarding", "position", "stock_screen", "causal_insight",
             "calendar", "risk", "cost", "attribution", "behavior",
+            "ic_memo", "comps_analysis", "thesis_tracker",
+            "earnings_analysis", "idea_generation",
         }
         assert ids == expected
 
@@ -146,6 +148,11 @@ class TestRouterAcceptanceCases:
         ("买 10 万的股票要交多少手续费", "cost"),
         ("我今年的收益主要来自哪里", "attribution"),
         ("我是不是在追高", "behavior"),
+        ("帮我给 600519 做一份买入分析", "ic_memo"),
+        ("帮我对比一下这几只股票的估值", "comps_analysis"),
+        ("帮我更新一下持仓评分卡", "thesis_tracker"),
+        ("600519 发财报了，帮我做一下财报解读", "earnings_analysis"),
+        ("帮我扫描一下候选池看看有没有新机会", "idea_generation"),
     ]
 
     @pytest.mark.parametrize("query,expected_skill", CASES)

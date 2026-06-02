@@ -3,7 +3,7 @@ skill_id: stock_screen
 name: 对话式选股
 phase: 7
 priority: P2
-status: skeleton
+status: implemented
 ---
 
 # Skill ③ — 对话式选股
@@ -16,14 +16,22 @@ status: skeleton
 
 ## 调用工具链（Phase 7 已实现）
 
-```
-# 占位 — Phase 7 实现
-1. intent_parse()            → 口语 → 结构化筛选规则
-2. strategy_save()           → 持久化到 custom_strategies 表
-3. candidate_scan()          → 执行扫描
-4. candidate_list()          → 获取结果
-5. style_annotate()          → 标注风格（价值/成长/红利等）
-6. human_translate()         → 候选 + 理由 + 风格点评
+```python
+from investment.agent_tools.stock_screen import (
+    parse_screen_query, run_screen, save_strategy, list_strategies,
+)
+
+# 1. 解析用户口语查询 → 结构化筛选条件
+criteria = parse_screen_query("帮我找低PE高股息的消费股")
+# criteria.pe_max, criteria.roe_min, criteria.dividend_yield_min, criteria.industry, criteria.style_tags
+
+# 2. 执行扫描 + 风格标注 + 人话输出
+result = run_screen("帮我找低PE高股息的消费股", save_as="低PE高股息消费")
+# result.criteria, result.candidates_raw, result.style_comment, result.human_message
+
+# 3. 可选：查看已保存策略
+strategies = list_strategies()
+# CLI: inv candidate scan --quick
 ```
 
 ## 输入 Schema

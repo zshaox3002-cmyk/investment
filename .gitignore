@@ -43,6 +43,7 @@ config/portfolio_snapshot.csv
 
 # Secrets
 .env
+.envrc
 
 # Logs
 *.log

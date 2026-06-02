@@ -3,7 +3,7 @@ skill_id: behavior
 name: 行为约束与决策日志
 phase: 7
 priority: P2
-status: skeleton
+status: implemented
 ---
 
 # Skill ⑨ — 行为约束与决策日志
@@ -16,14 +16,30 @@ status: skeleton
 
 ## 调用工具链（Phase 7 已实现）
 
-```
-# 占位 — Phase 7 实现
-1. behavior_flags_check()    → 检测处置效应/锚定/过度交易
-2. decision_journal_save()   → 记录决策日志（decision_journal 表）
-3. trade_frequency_calc()    → 计算近期交易频率
-4. holding_period_calc()     → 计算平均持仓周期
-5. bias_detect()             → 识别行为偏差模式
-6. human_translate()         → 翻译为人话行为报告
+```python
+from investment.agent_tools.behavior_guard import (
+    log_decision, run_behavior_check,
+)
+
+# 1. 交易前：记录决策 + 自动检测行为偏差
+journal_id, biases = log_decision(
+    decision_type="BUY",
+    stated_reason="PE 低于历史均值 30%，ROE 持续 >15%",
+    related_code="600519",
+    emotion_check="冷静，基于数据分析",
+)
+# biases 自动检测：FOMO_BUY / PANIC_SELL / OVERTRADING / DISPOSITION_EFFECT
+# 偏差同步写入 behavior_flags 表，决策写入 decision_journal 表
+
+# 2. 定期/复盘：全量行为检查（不关联单笔交易）
+report = run_behavior_check(lookback_days=90)
+# report.biases           — 检测到的所有行为偏差
+# report.trade_count_30d  — 近30天交易笔数
+# report.avg_holding_days — 平均持仓天数
+# report.human_message    — 完整人话行为报告
+
+# CLI: inv behavior check --lookback 90
+# CLI: inv behavior journal --type BUY --code 600519 --reason "..."
 ```
 
 ## 输入 Schema

@@ -3,7 +3,7 @@ skill_id: calendar
 name: 投资日历与催办
 phase: 7
 priority: P1
-status: skeleton
+status: implemented
 ---
 
 # Skill ⑤ — 投资日历与催办
@@ -18,14 +18,25 @@ status: skeleton
 
 ## 调用工具链（Phase 7 已实现）
 
-```
-# 占位 — Phase 7 实现
-1. calendar_load()           → 读取 task_calendar 表
-2. cooldown_check()          → 检查冷静期到期情况
-3. earnings_schedule()       → 获取持仓财报日期
-4. rebalance_todo_fill()     → 回填 Phase 3 的再平衡待办占位
-5. task_prioritize()         → 按优先级排序
-6. human_translate()         → 翻译为人话催办清单
+```python
+from investment.agent_tools.calendar import (
+    run_calendar, create_task, complete_task, fill_rebalance_placeholder,
+)
+
+# 1. 加载日历任务（自动标记逾期、种子标准任务、回填再平衡占位）
+report = run_calendar(period="week")  # today / week / month / quarter / year
+# report.overdue       — 已逾期任务列表
+# report.due_soon      — 3 天内到期任务
+# report.upcoming      — 本周期内其他任务
+# report.human_message — 完整人话催办清单
+
+# 2. 手动创建/完成任务
+task_id = create_task("检查600519止损", category="custom", due_date="2026-06-07", priority="high")
+complete_task(task_id, notes="已检查，止损位未触发")
+
+# 3. CLI 入口
+# inv calendar show --period week
+# inv calendar task add --title "..." --category custom --due 2026-06-07
 ```
 
 ## 输入 Schema

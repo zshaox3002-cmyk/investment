@@ -3,7 +3,7 @@ skill_id: cost
 name: 交易成本计算
 phase: 7
 priority: P2
-status: skeleton
+status: implemented
 ---
 
 # Skill ⑦ — 交易成本计算
@@ -16,13 +16,30 @@ status: skeleton
 
 ## 调用工具链（Phase 7 已实现）
 
-```
-# 占位 — Phase 7 实现
-1. market_detect()           → 判断市场（A 股沪/深/北 / 港股 / ETF）
-2. cost_model_load()         → 读取 cost_model 表（费率配置）
-3. cost_calc()               → 计算印花税/佣金/过户费/港股摩擦
-4. cost_log_save()           → 写入 trade_cost_log 表
-5. human_translate()         → 人话费用明细
+```python
+from investment.agent_tools.cost_calculator import (
+    detect_market, calc_cost, save_cost_log,
+)
+
+# 1. 检测市场（自动识别沪/深/北/港股）
+market = detect_market("600519")  # → "A_SH"
+market = detect_market("00700")   # → "HK"
+
+# 2. 计算全量交易成本（从 cost_model 表加载费率，fallback 到内置默认值）
+breakdown = calc_cost(code="600519", shares=1000, price=25.0, side="BUY")
+# breakdown.gross_amount  — 交易金额
+# breakdown.commission    — 券商佣金
+# breakdown.stamp_duty    — 印花税（仅卖出）
+# breakdown.transfer_fee  — 过户费（沪市）
+# breakdown.total_cost    — 总费用
+# breakdown.net_amount    — 实际支出/到手
+# breakdown.cost_rate     — 综合费率
+# breakdown.human_message — 完整人话费用明细
+
+# 3. 可选：将成本计算持久化到 trade_cost_log
+log_id = save_cost_log(breakdown, trade_id=42)
+
+# CLI: inv cost calc 600519 --shares 1000 --price 25.0 --side BUY
 ```
 
 ## 输入 Schema

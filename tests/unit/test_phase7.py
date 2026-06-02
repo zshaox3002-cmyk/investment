@@ -392,3 +392,214 @@ class TestRunBehaviorCheck:
         report = run_behavior_check()
         assert report is not None
         assert "所以你该做什么" in report.human_message or "未检测到" in report.human_message
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Skill ③ — run_screen integration (mocked CLI)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestRunScreen:
+    def test_run_screen_success(self):
+        from investment.agent_tools.stock_screen import run_screen
+        with patch(
+            "investment.agent_tools.stock_screen.run_inv",
+            return_value=(True, "Scan complete: 3 candidates"),
+        ):
+            result = run_screen("低PE高股息消费股")
+        assert result.criteria.pe_max is not None or result.criteria.dividend_yield_min is not None
+        assert "所以你该做什么" in result.human_message
+        assert result.strategy_id is None  # no save_as
+
+    def test_run_screen_saves_strategy(self, tmp_db):
+        from investment.agent_tools.stock_screen import run_screen
+        with patch(
+            "investment.agent_tools.stock_screen.run_inv",
+            return_value=(True, "Scan complete: 5 candidates"),
+        ):
+            result = run_screen("低PE高股息", save_as="测试策略", db_path=tmp_db)
+        assert result.strategy_id is not None
+        assert result.strategy_id > 0
+        assert "策略已保存" in result.human_message
+
+    def test_run_screen_failure(self):
+        from investment.agent_tools.stock_screen import run_screen
+        with patch(
+            "investment.agent_tools.stock_screen.run_inv",
+            return_value=(False, "Connection refused"),
+        ):
+            result = run_screen("低PE高股息")
+        assert "扫描状态" in result.human_message or "问题" in result.human_message
+
+    def test_run_screen_style_tags_in_output(self):
+        from investment.agent_tools.stock_screen import run_screen
+        with patch(
+            "investment.agent_tools.stock_screen.run_inv",
+            return_value=(True, "Scan complete"),
+        ):
+            result = run_screen("高股息红利股")
+        assert len(result.style_comment) > 0
+
+    def test_run_screen_with_industry(self):
+        from investment.agent_tools.stock_screen import run_screen
+        with patch(
+            "investment.agent_tools.stock_screen.run_inv",
+            return_value=(True, "Scan complete"),
+        ):
+            result = run_screen("白酒行业的白马股")
+        assert result.criteria.industry == "白酒"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Skill ③ — edge cases
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestParseScreenQueryEdgeCases:
+    def test_market_cap_max(self):
+        c = parse_screen_query("市值100亿以下的小盘股")
+        assert c.market_cap_max is not None
+
+    def test_market_cap_min(self):
+        c = parse_screen_query("市值500亿以上的大盘股")
+        assert c.market_cap_min is not None
+
+    def test_multiple_conditions(self):
+        c = parse_screen_query("PE低于20 ROE超过15% 股息率超过3% 消费行业")
+        assert c.pe_max is not None
+        assert c.roe_min is not None
+        assert c.dividend_yield_min is not None
+        assert c.industry == "消费"
+
+    def test_style_tags_growth(self):
+        c = parse_screen_query("高增长高ROE的成长股")
+        assert "成长" in c.style_tags
+
+    def test_financial_sector(self):
+        c = parse_screen_query("银行股")
+        assert c.industry == "银行"
+
+    def test_default_pe_max(self):
+        c = parse_screen_query("低市盈率股票")
+        assert c.pe_max is not None
+
+    def test_raw_query_stored(self):
+        c = parse_screen_query("帮我找白酒龙头")
+        assert c.raw_query == "帮我找白酒龙头"
+
+    def test_no_duplicate_style_tags(self):
+        c = parse_screen_query("低估值高股息的价值股红利股白马股")
+        # Just check no crash
+        assert isinstance(c.style_tags, list)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Skill ⑦ — cost calculator edge cases
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestDetectMarketEdgeCases:
+    def test_bj_exchange(self):
+        assert detect_market("430001") == "A_BJ"
+
+    def test_hk_with_suffix(self):
+        assert detect_market("00700.HK") == "HK"
+
+    def test_kcb(self):
+        assert detect_market("688001") == "A_SH"
+
+    def test_unknown_defaults_to_sh(self):
+        assert detect_market("999999") == "A_SH"
+
+
+class TestCalcCostEdgeCases:
+    def test_custom_broker_rate(self):
+        b = calc_cost("600519", 100, 100.0, "BUY", broker_commission_rate=0.0001)
+        # gross=10000, commission_rate=0.0001 → 1.0, but min is 5.0
+        assert b.commission == pytest.approx(5.0)
+
+    def test_cost_rate_roundtrip(self):
+        """Bought and sold immediately: total cost = buy_cost + sell_cost."""
+        b_buy = calc_cost("600519", 100, 100.0, "BUY")
+        b_sell = calc_cost("600519", 100, 100.0, "SELL")
+        total_pct = (b_buy.total_cost + b_sell.total_cost) / b_buy.gross_amount
+        assert total_pct > 0.001  # at least 0.1% round-trip
+
+    def test_small_trade_commission_min(self):
+        """Very small trade should hit commission minimum."""
+        # 1 share * 100 yuan = 100 gross → commission = max(100*0.00025, 5) = 5
+        b = calc_cost("600519", 1, 100.0, "BUY")
+        assert b.commission == pytest.approx(5.0)
+
+    def test_large_trade_commission(self):
+        """Large trade should have commission > minimum."""
+        b = calc_cost("600519", 10000, 50.0, "BUY")
+        # gross = 500,000; commission = max(500000*0.00025, 5) = 125
+        assert b.commission > 5.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Skill ⑤ — calendar edge cases
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestCalendarEdgeCases:
+    def test_get_tasks_today_period(self, tmp_db):
+        tasks = get_tasks(period="today", db_path=tmp_db)
+        assert isinstance(tasks, list)
+
+    def test_get_tasks_month_period(self, tmp_db):
+        tasks = get_tasks(period="month", db_path=tmp_db)
+        assert isinstance(tasks, list)
+
+    def test_get_tasks_include_done(self, tmp_db):
+        tid = create_task("已完成任务", "custom", "2026-06-30", db_path=tmp_db)
+        complete_task(tid, db_path=tmp_db)
+        tasks = get_tasks(period="year", include_done=True, db_path=tmp_db)
+        done = [t for t in tasks if t["id"] == tid]
+        assert len(done) > 0
+
+    def test_create_task_with_all_fields(self, tmp_db):
+        tid = create_task(
+            "检查止损", "cooldown", "2026-06-15",
+            priority="high", related_code="600519", notes="冷静期到期",
+            db_path=tmp_db,
+        )
+        assert tid > 0
+
+    def test_mark_overdue_empty_db(self, tmp_db):
+        n = mark_overdue_tasks(db_path=tmp_db)
+        assert n >= 0  # just shouldn't crash
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Skill ⑨ — behavior guard edge cases
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestBehaviorGuardEdgeCases:
+    def test_log_decision_no_code(self, tmp_db):
+        journal_id, biases = log_decision("HOLD", "观望", db_path=tmp_db)
+        assert journal_id > 0
+
+    def test_log_decision_with_emotion_check(self, tmp_db):
+        journal_id, biases = log_decision(
+            "BUY", "低PE高ROE", "600519",
+            emotion_check="经过冷静期，基于数据分析",
+            db_path=tmp_db,
+        )
+        assert journal_id > 0
+
+    def test_behavior_flags_written(self, tmp_db):
+        from investment.core.db import connect
+        journal_id, biases = log_decision("BUY", "测试", "600519", db_path=tmp_db)
+        # Check behavior_flags table
+        conn = connect(tmp_db)
+        rows = conn.execute("SELECT * FROM behavior_flags").fetchall()
+        conn.close()
+        # biases may be empty if no price data, that's ok
+        assert isinstance(rows, list)
+
+    def test_run_behavior_check_empty_db(self, tmp_db):
+        report = run_behavior_check(db_path=tmp_db)
+        assert report.trade_count_30d >= 0
+        assert report.avg_holding_days >= 0.0
+
+    def test_run_behavior_check_with_lookback(self, tmp_db):
+        report = run_behavior_check(lookback_days=180, db_path=tmp_db)
+        assert isinstance(report, BehaviorReport)

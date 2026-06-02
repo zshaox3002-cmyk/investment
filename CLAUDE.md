@@ -3,12 +3,26 @@
 ## 环境
 
 ```bash
-INV=.venv/bin/inv          # 所有 CLI 命令入口（必须用 venv 内路径）
-DB=data/portfolio.db        # SQLite 数据库
-PY=.venv/bin/python         # Python 3.11
+# 项目已配置 .envrc（direnv 自动加载），或手动执行：
+export INV=.venv/bin/inv
+export PY=.venv/bin/python
+# DB 路径
+DB=data/portfolio.db
 ```
 
-执行任何 `inv` 命令一律用 `$INV`，禁止使用裸 `inv` 或 `python -m investment`。
+- 执行任何 CLI 命令一律用 `$INV`（即 `.venv/bin/inv`），禁止裸 `inv` 或 `python -m investment`
+- 若 `$INV` 未展开（shell 中变量为空），自动 fallback：直接用 `.venv/bin/inv` 替代 `$INV`
+- DB schema 详见 `docs/db_schema.md`（查询前先查表结构，避免盲写 SQL）
+- holdings/quotes/theses 等表用 `instrument_id` 做外键，查某只股票需先 JOIN `instruments` 获取 id
+
+### 数据获取策略（优先级从高到低）
+
+1. **`$INV snapshot pull`**（腾讯行情源，稳定）→ 获取所有持仓标的最新价
+2. **DB 直查** `quotes` 表 → 已有历史行情，无需联网
+3. **WebSearch** → 财务数据（PE/PB/ROE/EPS/营收/净利润），1 次搜索通常覆盖所有关键指标
+4. **`akshare` Python 包** → 仅在前 3 种方式都失败时使用（连接不稳定，易超时）
+
+> 关键原则：akshare 失败不重试，直接用 WebSearch 兜底。财务数据（年报/季报）优先从财经网站搜索结果获取，比 akshare 更可靠。
 
 ## 模块索引
 
@@ -24,6 +38,12 @@ PY=.venv/bin/python         # Python 3.11
 | 因果、causal、节点、边、图谱、信号、impact chain、discover、assess、daily | [模块6](#模块6-因果推理) |
 | 迁移、migrate、对账、verify、rollback、tables、导出、data | [模块7](#模块7-数据维护) |
 | 测试、pytest、安装、venv、版本、version、cov | [模块8](#模块8-环境与测试) |
+| IC Memo、买入分析、建仓分析、投资决策、三情景、目标价 | [模块9](#模块9-研究分析类-skills) |
+| 估值对比、同业比较、comps、估值分析、可比公司 | [模块9](#模块9-研究分析类-skills) |
+| 论点跟踪、月度评分、评分卡、thesis跟踪、支柱状态 | [模块9](#模块9-研究分析类-skills) |
+| 财报分析、业绩解读、earnings、季报、年报 | [模块9](#模块9-研究分析类-skills) |
+| 候选池刷新、量化筛选、系统扫描、新机会 | [模块9](#模块9-研究分析类-skills) |
+| 复习、概念、笔记、notes、知识、学习笔记、是什么意思 | [模块10](#模块10-知识归档) |
 
 ## 项目定位
 
@@ -42,6 +62,7 @@ alerts/          # 触发告警归档（md + DB 同步）
 trades/          # 交易决策与复盘（md + DB 同步）
 data/            # portfolio.db + 行情缓存
 docs/            # architecture.md 等文档
+knowledge/       # 学习笔记（边用边学，概念解释归档）
 tests/           # pytest 单元测试
 ```
 
@@ -100,10 +121,11 @@ $INV exec monitor                       # 检查已 arm 的止损止盈规则是
 ### 买入工作流
 
 ```
-/ic-memo → $INV trade decision CODE --type NEW --ic-memo -n "理由"
-        → 等 7 天冷静期
-        → $INV trade log CODE -s N -p PRICE --side BUY -d decision_NNN
-        → $INV trade apply TRADE_ID
+用自然语言触发（如"帮我给 600519 做一份买入分析"）→ IC Memo 分析
+→ $INV trade decision CODE --type NEW --ic-memo -n "理由"
+→ 等 7 天冷静期
+→ $INV trade log CODE -s N -p PRICE --side BUY -d decision_NNN
+→ $INV trade apply TRADE_ID
 ```
 
 初始仓位 ≤ C 档 5%，资金路由见 `config/capital.yaml`。
@@ -231,6 +253,79 @@ $INV causal lifecycle review [--days 90] # 查看生命周期变化
 
 ---
 
+## 模块9: 研究分析类 Skills
+
+> 以下 5 个 Skill 通过自然语言意图路由触发。所有 Skill 定义在 `prompts/skills/10-14_*.md`。
+
+### Skill ⑩ — 买入决策备忘录（IC Memo）
+
+```bash
+# 自然语言触发示例：
+# "帮我给 600519 做一份买入分析"
+# "这只股票能不能买"
+# "帮我评估一下这笔投资的回报和风险"
+
+# 底层 CLI:
+$INV thesis sync                        # 同步 thesis 状态
+$INV trade decision CODE --type NEW --ic-memo -n "理由"
+```
+
+### Skill ⑪ — 估值横向对比
+
+```bash
+# 自然语言触发示例：
+# "帮我对比一下这几只股票的估值"
+# "600519 现在的估值和同行比怎么样"
+# "这只股票便宜还是贵"
+
+# 底层 CLI:
+$INV snapshot pull                      # 拉取估值数据
+$INV candidate scan --quick             # 扫描同行业可比公司
+```
+
+### Skill ⑫ — 持仓论点跟踪
+
+```bash
+# 自然语言触发示例：
+# "帮我更新一下持仓评分卡"
+# "检查一下我的持仓论点还成立吗"
+# "这个月的 thesis 评分该更新了"
+
+# 底层 CLI:
+$INV thesis sync                        # 同步 thesis → DB
+$INV thesis stale --days 30             # 检查过期论点
+$INV thesis score CODE --score N --dimension D --rationale "..."  # 月度评分
+```
+
+### Skill ⑬ — 财报解读
+
+```bash
+# 自然语言触发示例：
+# "600519 发财报了，帮我分析一下"
+# "这份季报怎么样，对持仓有什么影响"
+
+# 底层 CLI:
+$INV snapshot pull                      # 财报后股价反应
+$INV thesis sync                        # 获取当前支柱状态
+$INV thesis score CODE --score N --dimension fundamentals --rationale "..."
+```
+
+### Skill ⑭ — 月度候选池扫描
+
+```bash
+# 自然语言触发示例：
+# "帮我扫描一下候选池，看看有没有新机会"
+# "这个月的候选标的扫描该做了"
+
+# 底层 CLI:
+$INV candidate scan --quick             # 全市场扫描
+$INV candidate refresh                  # 刷新 PE/市值
+$INV candidate list                     # 查看候选
+$INV candidate promote ID               # 晋升为 IC Memo 研究对象
+```
+
+---
+
 ## 模块7: 数据维护
 
 ```bash
@@ -252,20 +347,74 @@ $PY -m pytest tests/ -k PATTERN          # 按模式筛选
 pip install -e ".[dev]"                  # 首次安装（在 venv 内）
 ```
 
-## 5 个 Skills（手动调用 `/skill-name`）
+---
 
-| Skill | 触发时机 | 说明 |
-|-------|---------|------|
-| thesis-tracker | 每月末/财报后/回撤 ≥15% | 持仓论点跟踪与月度评分卡 |
-| comps-analysis | 买入前/每季度 | 估值横向对比 |
-| earnings-analysis | 财报发布后 48h | 财报解读 |
-| ic-memo | 新建仓前（硬性） | 买入决策备忘录 |
-| idea-generation | 每月 | 候选池扫描与创意生成 |
+## 模块10: 知识归档
+
+### 自动归档规则（最高优先级）
+
+> ⚠️ **每当你向用户解释一个新投资概念（如"加权期望回报"、"戴维斯双杀"、"PE 估值"等），解释完毕后必须立即运行以下命令归档：**
+
+```bash
+$INV notes append --concept "概念名" --explanation "通俗解释（用户视角，1-3句话）" --example "实际案例（可从当前对话中提取）" --summary "一句话总结"
+```
+
+- 去重已内置，不会重复记录同名概念
+- 用户追问时才解释概念，解释完就自动归档，无需用户额外指令
+- 归档后无需向用户确认（静默完成）
+
+### 复习/查询
+
+```bash
+$INV notes search "关键词"   # 搜索已归档概念
+$INV notes read              # 查看全部笔记
+```
+
+### 用户触发示例
+
+> "复习一下我学过的内容" → 运行 `$INV notes read` 展示全部笔记
+> "什么是 PE" → 解释完自动 `$INV notes append`，不回显确认
+
+---
+
+## 14 个 Skills（自然语言触发，无需手动 `/skill-name`）
+
+### 操作执行类（5 个）
+| 编号 | Skill ID | 名称 | 优先级 | 触发时机 |
+|------|----------|------|--------|---------|
+| ① | `onboarding` | 目标与资产录入 | P0 | 首次使用 / 重置目标 |
+| ② | `position` | 仓位管理与再平衡巡检 | P0 | 每日盘后 / 主动查询 |
+| ③ | `stock_screen` | 对话式选股 | P2 | 即时选股查询 |
+| ⑤ | `calendar` | 投资日历与催办 | P1 | 任务管理 / 提醒 |
+| ⑦ | `cost` | 交易成本计算 | P2 | 买卖前估算 |
+
+### 风险监控类（2 个）
+| 编号 | Skill ID | 名称 | 优先级 | 触发时机 |
+|------|----------|------|--------|---------|
+| ⑥ | `risk` | 组合风险量化 | P1 | 风险评估 / 月度复盘 |
+| ⑨ | `behavior` | 行为约束与决策日志 | P2 | 决策前检查 / 复盘 |
+
+### 分析归因类（2 个）
+| 编号 | Skill ID | 名称 | 优先级 | 触发时机 |
+|------|----------|------|--------|---------|
+| ④ | `causal_insight` | 外部信息与因果归因 | P2 | 异动解释 / 新闻解读 |
+| ⑧ | `attribution` | 业绩归因 | P1 | 复盘 / 季度总结 |
+
+### 研究分析类（5 个）
+| 编号 | Skill ID | 名称 | 优先级 | 触发时机 |
+|------|----------|------|--------|---------|
+| ⑩ | `ic_memo` | 买入决策备忘录 | P1 | 新建仓前（硬性前置） |
+| ⑪ | `comps_analysis` | 估值横向对比 | P1 | 买入前 / 每季度 |
+| ⑫ | `thesis_tracker` | 持仓论点跟踪 | P1 | 每月末 / 财报后 / 回撤≥15% |
+| ⑬ | `earnings_analysis` | 财报解读 | P1 | 财报发布后 48h |
+| ⑭ | `idea_generation` | 月度候选池扫描 | P2 | 每月末 |
+
+> 用户直接用自然语言触发（如"帮我分析一下这只股票能不能买"→⑩，"对比一下估值"→⑪），无需手动敲 `/skill-name`。系统通过意图路由自动匹配最合适的 Skill。路由规则详见 `prompts/_intent_router.md`。
 
 ## 四道纪律护栏
 
 1. 交易冷静期 — 买入 7 天 / 卖出 3 天 / 补仓 5 天
-2. 买入先跑 IC Memo（`/ic-memo`）
+2. 买入先跑 IC Memo（说"帮我分析一下XX能不能买"，系统自动触发 Skill ⑩）
 3. 单股回撤 15% 强制审查
 4. 账户回撤 -20% 强制降仓
 

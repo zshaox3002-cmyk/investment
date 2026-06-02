@@ -331,7 +331,7 @@ class TestLLMRetryLogic:
         mock_client.messages.create.side_effect = mock_create
 
         with patch(
-            "investment.core.llm._get_client", return_value=mock_client
+            "investment.core.llm._make_client", return_value=("anthropic", mock_client)
         ):
             result = call_llm_with_schema("prompt", TestSchema, max_retries=3)
 

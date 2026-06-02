@@ -574,15 +574,26 @@ class TestLifecycleTransitions:
         assert result["decayed"] >= 1
 
     def test_lifecycle_no_last_signal_date(self, db_path, repo):
-        """Nodes with no last_signal_at should use days_since=999."""
+        """Nodes with no last_signal_at should calculate days_since from created_at."""
         with repo.transaction():
             repo.add_node("无信号节点", "macro", "L1_macro", "", "[]")
+
+        # Backdate created_at to 200 days ago to simulate an old, signal-less node
+        old_date = (dt_date.today() - timedelta(days=200)).isoformat()
+        with repo.transaction():
+            repo._conn.execute(
+                "UPDATE causal_nodes SET created_at = ? WHERE name = ?",
+                (old_date, "无信号节点"),
+            )
 
         result = update_lifecycle(db_path=db_path)
 
         with repo.transaction():
             node = repo.get_node("无信号节点")
-            assert node.lifecycle_state in ("dormant", "archived")
+            # 200 days without signal → transitions from active to dormant
+            # (archive_after=180 only applies when already dormant)
+            assert node.lifecycle_state == "dormant"
+            assert result["dormant"] >= 1
 
 
 # ── Signal writing ──────────────────────────────────────────────────────────
