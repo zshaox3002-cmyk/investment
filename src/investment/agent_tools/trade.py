@@ -95,7 +95,7 @@ def trade_apply(trade_id: str) -> ToolResult:
     success, output = run_inv("trade", "apply", trade_id)
     if success:
         human = (
-            f"持仓已更新（{trade_id}）。\n"
+            f"持仓已更新（{trade_id}）。卖出资金已自动入账到活期存款。\n"
             "所以你该做什么：运行 snapshot_pull() 刷新行情，确认持仓市值正确。"
         )
     else:

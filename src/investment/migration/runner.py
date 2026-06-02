@@ -1,4 +1,4 @@
-"""Migration runner: executes all 8 steps in order."""
+"""Migration runner: executes all steps in order."""
 from __future__ import annotations
 
 import sys
@@ -11,6 +11,7 @@ from investment.migration import (
     m01, m02, m03, m04, m05, m06, m07, m08,
 )
 from investment.migration import _09_causal_ext as m09
+from investment.migration import _10_agent_v3 as m10
 
 
 def run_all(db_path=None) -> dict[str, int]:
@@ -28,6 +29,7 @@ def run_all(db_path=None) -> dict[str, int]:
         ("07_load_executions",        m07.run),
         ("08_load_breaches",          m08.run),
         ("09_causal_ext",             m09.run),
+        ("10_agent_v3",               m10.run),
     ]
 
     results = {}

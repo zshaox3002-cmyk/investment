@@ -38,6 +38,10 @@ attribution_app = typer.Typer(help="Performance attribution.", no_args_is_help=T
 calendar_app = typer.Typer(help="Investment calendar and reminders.", no_args_is_help=True)
 cost_app = typer.Typer(help="Trade cost calculator.", no_args_is_help=True)
 behavior_app = typer.Typer(help="Behavioral bias detection.", no_args_is_help=True)
+notes_app = typer.Typer(help="Knowledge notes (边用边学).", no_args_is_help=True)
+agent_app = typer.Typer(help="Agent orchestrator (v3).", no_args_is_help=True)
+goal_app = typer.Typer(help="Annual goal progress (v3).", no_args_is_help=True)
+health_app = typer.Typer(help="Position health scoring (v3).", no_args_is_help=True)
 app.add_typer(migrate_app, name="migrate")
 app.add_typer(data_app, name="data")
 app.add_typer(snapshot_app, name="snapshot")
@@ -54,6 +58,30 @@ app.add_typer(attribution_app, name="attribution")
 app.add_typer(calendar_app, name="calendar")
 app.add_typer(cost_app, name="cost")
 app.add_typer(behavior_app, name="behavior")
+app.add_typer(notes_app, name="notes")
+app.add_typer(agent_app, name="agent")
+app.add_typer(goal_app, name="goal")
+app.add_typer(health_app, name="health")
+
+# ── inv dashboard serve ────────────────────────────────────────────────────────
+
+@dashboard_app.command("serve")
+def dashboard_serve(
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind host"),
+    port: int = typer.Option(8765, "--port", "-p", help="Port"),
+    reload: bool = typer.Option(False, "--reload", help="Auto-reload on code change"),
+) -> None:
+    """Start the v3 web dashboard (FastAPI + uvicorn)."""
+    import uvicorn
+    console.print(f"[bold]Dashboard v3[/bold] → http://{host}:{port}")
+    console.print("  Press Ctrl+C to stop.")
+    uvicorn.run(
+        "investment.web.app:app",
+        host=host,
+        port=port,
+        reload=reload,
+        log_level="warning",
+    )
 
 
 @app.command()
@@ -1642,6 +1670,346 @@ def behavior_log(
             console.print(f"    所以你该做什么：{b.action}")
     else:
         console.print("[green]✓ 未检测到明显行为偏差[/green]")
+
+
+# ---- knowledge notes (边用边学) ----
+
+@notes_app.command("append")
+def notes_append(
+    concept: str = typer.Option(..., "--concept", "-c", help="概念名称"),
+    explanation: str = typer.Option(..., "--explanation", "-e", help="通俗解释"),
+    example: str = typer.Option("", "--example", "-x", help="实际案例"),
+    summary: str = typer.Option("", "--summary", "-s", help="一句话总结"),
+) -> None:
+    """Append a new concept to the learning notes (auto-dedup)."""
+    from investment.agent_tools.knowledge_notes import append_concept
+
+    success, msg = append_concept(
+        concept=concept,
+        explanation=explanation,
+        example=example,
+        summary=summary,
+    )
+    if success:
+        console.print(f"[green]✓ {msg}[/green]")
+    else:
+        console.print(f"[yellow]⚠ {msg}[/yellow]")
+
+
+@notes_app.command("search")
+def notes_search(
+    query: str = typer.Argument(..., help="搜索关键词"),
+) -> None:
+    """Search the learning notes for a concept."""
+    from investment.agent_tools.knowledge_notes import search_notes
+
+    result = search_notes(query)
+    console.print(result)
+
+
+@notes_app.command("read")
+def notes_read() -> None:
+    """Read the full learning notes file."""
+    from investment.agent_tools.knowledge_notes import read_notes
+
+    content = read_notes()
+    console.print(content)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# inv agent  (v3 orchestrator)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@agent_app.command("run")
+def agent_run(
+    mode: str = typer.Option("premarket", "--mode", "-m",
+                             help="premarket | postmarket | manual"),
+    no_save: bool = typer.Option(False, "--no-save", help="Skip writing to DB"),
+) -> None:
+    """Run the full agent orchestration loop and print today's brief."""
+    from investment.agent_orchestrator.runner import run as orch_run
+    from investment.agent_orchestrator.operating_state import compute_and_save
+    from investment.agent_orchestrator.brief import generate_brief, format_brief_text
+
+    valid_modes = ("premarket", "postmarket", "manual")
+    if mode not in valid_modes:
+        console.print(f"[red]--mode must be one of {valid_modes}[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[bold]⚙ Agent run[/bold] mode={mode} …")
+
+    result = orch_run(mode=mode, save_log=not no_save)
+
+    # Report module outcomes
+    modules = [
+        ("exec_monitor", result.exec_monitor),
+        ("position",     result.position),
+        ("risk",         result.risk),
+        ("attribution",  result.attribution),
+        ("calendar",     result.calendar),
+        ("causal",       result.causal),
+    ]
+    for name, mod in modules:
+        if mod.ok:
+            console.print(f"  [green]✓[/green] {name}")
+        else:
+            console.print(f"  [yellow]⚠[/yellow] {name}: {mod.error[:80]}")
+
+    # Compute + save operating state
+    state = compute_and_save(result, db_path=None)
+
+    # Generate and print brief
+    brief = generate_brief(result, state)
+    console.print("")
+    console.print(format_brief_text(brief))
+
+
+@agent_app.command("brief")
+def agent_brief() -> None:
+    """Print today's brief from DB state (no re-run)."""
+    from investment.agent_orchestrator.brief import DailyBrief, _build_human_message
+    from investment.agent_orchestrator.operating_state import OperatingState
+    from investment.core.db import connect
+    from datetime import date
+
+    today = date.today().isoformat()
+    conn = connect()
+
+    # Read operating state from DB
+    row = conn.execute(
+        "SELECT * FROM daily_operating_state WHERE state_date=?", (today,)
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        console.print(
+            f"[yellow]今日（{today}）尚无运行记录。请先执行 `inv agent run`。[/yellow]"
+        )
+        raise typer.Exit(1)
+
+    state = OperatingState(
+        state_date=row["state_date"],
+        health_light=row["health_light"],
+        state_label=row["state_label"],
+        executable_count=row["executable_count"],
+        confirm_count=row["confirm_count"],
+        monitor_count=row["monitor_count"],
+        blocked_count=row["blocked_count"],
+        critical_count=row["critical_count"],
+        warning_count=row["warning_count"],
+        top_message=row["top_message"],
+        evidence_json=row["evidence_json"],
+    )
+
+    from investment.agent_orchestrator.brief import (
+        _get_tasks_from_db, _get_breach_changes,
+        _LIGHT_LABELS, _fmt_value, DailyBrief,
+    )
+    executable, confirm, monitor = _get_tasks_from_db(None)
+    new_breaches, resolved = _get_breach_changes(None)
+
+    brief = DailyBrief(
+        brief_date=today,
+        health_light=state.health_light,
+        state_label=state.state_label,
+        executable_count=state.executable_count or len(executable),
+        confirm_count=state.confirm_count or len(confirm),
+        monitor_count=state.monitor_count or len(monitor),
+        executable_tasks=executable[:10],
+        confirm_tasks=confirm[:10],
+        monitor_tasks=monitor[:10],
+        new_breaches=new_breaches,
+        resolved_breaches=resolved,
+        next_action=executable[0]["title"] if executable else "",
+        next_command=executable[0].get("command", "") if executable else "",
+    )
+    console.print(_build_human_message(brief))
+
+
+@agent_app.command("tasks")
+def agent_tasks(
+    layer: str = typer.Option("", "--layer", "-l",
+                              help="executable | confirm | monitor | blocked | info"),
+    all_: bool = typer.Option(False, "--all", "-a", help="Include done/skipped"),
+) -> None:
+    """List today's agent-generated tasks from task_calendar."""
+    from investment.core.db import connect
+    from datetime import date
+    import json as _json
+
+    today = date.today().isoformat()
+    conn = connect()
+
+    status_filter = "" if all_ else "AND status NOT IN ('done','skipped')"
+    layer_filter  = f"AND decision_layer='{layer}'" if layer else ""
+
+    rows = conn.execute(
+        f"""SELECT id, title, status, priority, decision_layer,
+                   related_code, due_date, suggested_command, source_module
+            FROM task_calendar
+            WHERE due_date <= date(?, '+7 days')
+            {status_filter}
+            {layer_filter}
+            ORDER BY
+              CASE decision_layer
+                WHEN 'executable' THEN 0 WHEN 'confirm' THEN 1
+                WHEN 'monitor'    THEN 2 WHEN 'blocked' THEN 3
+                ELSE 4 END,
+              CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+              due_date""",
+        (today,),
+    ).fetchall()
+    conn.close()
+
+    if not rows:
+        console.print("[dim]No tasks found.[/dim]")
+        return
+
+    _LAYER_COLORS = {
+        "executable": "red", "confirm": "yellow",
+        "monitor": "blue",  "blocked": "dim",  "info": "white",
+    }
+    table = Table(title=f"Agent Tasks — {today}")
+    table.add_column("ID",      style="dim", width=4)
+    table.add_column("Layer",   width=12)
+    table.add_column("Pri",     width=4)
+    table.add_column("Title",   min_width=30)
+    table.add_column("Code",    width=8)
+    table.add_column("Due",     width=11)
+    table.add_column("Command", overflow="fold")
+
+    for r in rows:
+        lyr = r["decision_layer"] or "monitor"
+        color = _LAYER_COLORS.get(lyr, "white")
+        table.add_row(
+            str(r["id"]),
+            f"[{color}]{lyr}[/{color}]",
+            r["priority"] or "",
+            r["title"],
+            r["related_code"] or "",
+            r["due_date"] or "",
+            r["suggested_command"] or "",
+        )
+    console.print(table)
+
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# inv goal  (v3 — annual goal progress)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@goal_app.command("compute")
+def goal_compute() -> None:
+    """Compute YTD goal progress and write to goal_progress table."""
+    from investment.agent_tools.goal_engine import run_goal_engine
+    result = run_goal_engine()
+    console.print(result.human_message)
+    if result.insufficient_data:
+        console.print("[yellow]⚠ insufficient_data — some fields unavailable[/yellow]")
+    else:
+        console.print("[green]✓ goal_progress updated[/green]")
+
+
+@goal_app.command("show")
+def goal_show() -> None:
+    """Show latest goal_progress record from DB."""
+    from investment.core.db import connect
+    conn = connect()
+    row = conn.execute(
+        "SELECT * FROM goal_progress ORDER BY progress_date DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        console.print("[yellow]No goal_progress data. Run `inv goal compute` first.[/yellow]")
+        raise typer.Exit(1)
+
+    table = Table(title=f"Goal Progress — {row['progress_date']}")
+    table.add_column("Metric")
+    table.add_column("Value")
+
+    def _fmt(v, pct=True):
+        if v is None:
+            return "N/A"
+        return f"{float(v)*100:+.2f}%" if pct else str(v)
+
+    table.add_row("年度目标收益率", _fmt(row["target_annual_return"]))
+    table.add_row("实际 YTD", _fmt(row["actual_ytd_return"]))
+    table.add_row("应达 YTD（线性）", _fmt(row["target_ytd_return"]))
+    table.add_row("进度差距", _fmt(row["progress_gap"]))
+    table.add_row("剩余所需年化", _fmt(row["required_return_remaining"]))
+    table.add_row("最大回撤", _fmt(row["max_drawdown"]))
+    table.add_row("风险预算使用", f"{float(row['risk_budget_used'])*100:.0f}%" if row["risk_budget_used"] is not None else "N/A")
+    table.add_row("沪深300 YTD", _fmt(row["benchmark_return_ytd"]))
+    table.add_row("组合总值", f"{float(row['portfolio_value'])/1e4:.1f}万" if row["portfolio_value"] else "N/A")
+    console.print(table)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# inv health  (v3 — position health scoring)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@health_app.command("compute")
+def health_compute() -> None:
+    """Compute per-holding health scores and write to position_health table."""
+    from investment.agent_tools.position_health import run_position_health, build_health_summary
+    records = run_position_health()
+    if not records:
+        console.print("[yellow]No holdings found.[/yellow]")
+        return
+    console.print(build_health_summary(records))
+    console.print(f"[green]✓ {len(records)} records written to position_health[/green]")
+
+
+@health_app.command("show")
+def health_show() -> None:
+    """Show latest position_health records from DB."""
+    from investment.core.db import connect
+    conn = connect()
+    rows = conn.execute(
+        """SELECT ph.*, i.code, i.name, i.tranche
+           FROM position_health ph
+           JOIN instruments i ON i.id = ph.instrument_id
+           WHERE ph.calc_date = (SELECT MAX(calc_date) FROM position_health)
+           ORDER BY ph.health_score ASC""",
+    ).fetchall()
+    conn.close()
+
+    if not rows:
+        console.print("[yellow]No position_health data. Run `inv health compute` first.[/yellow]")
+        raise typer.Exit(1)
+
+    table = Table(title=f"Position Health — {rows[0]['calc_date']}")
+    table.add_column("Code", width=8)
+    table.add_column("Name", min_width=10)
+    table.add_column("Label", width=12)
+    table.add_column("Score", width=6)
+    table.add_column("PnL%", width=8)
+    table.add_column("Drawdown%", width=10)
+    table.add_column("Weight%", width=8)
+    table.add_column("Action", overflow="fold")
+
+    _LABEL_COLORS = {
+        "act": "red", "review": "yellow", "watch": "blue",
+        "healthy": "green", "unknown": "dim", "insufficient_data": "dim",
+    }
+    for r in rows:
+        label = r["health_label"] or "unknown"
+        color = _LABEL_COLORS.get(label, "white")
+        def _p(v, mult=100):
+            return f"{float(v)*mult:+.1f}%" if v is not None else "N/A"
+        table.add_row(
+            r["code"],
+            r["name"],
+            f"[{color}]{label}[/{color}]",
+            f"{float(r['health_score']):.0f}" if r["health_score"] else "N/A",
+            _p(r["pnl_pct"]),
+            _p(r["drawdown_pct"]),
+            _p(r["weight_total"]),
+            r["suggested_action"] or "",
+        )
+    console.print(table)
 
 
 if __name__ == "__main__":

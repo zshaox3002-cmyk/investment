@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投资组合管理台</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{display:['DM Serif Display','Noto Serif SC','serif'],sans:['IBM Plex Sans','PingFang SC','Microsoft YaHei','sans-serif'],mono:['IBM Plex Mono','SF Mono','Cascadia Code','monospace']}}}}</script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--red:#DC2626;--red-bg:#FEF2F2;--red-border:#FECACA;--red-text:#991B1B;
+  --green:#059669;--green-bg:#ECFDF5;--green-border:#A7F3D0;--green-text:#065F46;
+  --amber:#D97706;--amber-bg:#FFFBEB;--amber-border:#FDE68A;--amber-text:#92400E;
+  --blue:#2563EB;--blue-bg:#EFF6FF;--blue-border:#BFDBFE;--blue-text:#1E40AF;
+  --slate-50:#F8FAFC;--slate-100:#F1F5F9;--slate-200:#E2E8F0;--slate-300:#CBD5E1;
+  --slate-400:#94A3B8;--slate-500:#64748B;--slate-700:#334155;--slate-900:#0F172A;}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(175deg,var(--slate-50) 0%,#EEF2F7 40%,#F1F5F9 100%);min-height:100vh;font-family:'IBM Plex Sans','PingFang SC','Microsoft YaHei',sans-serif;color:var(--slate-700)}
+.card{background:#fff;border-radius:14px;border:1px solid var(--slate-200);box-shadow:0 1px 2px rgba(0,0,0,.03),0 4px 12px rgba(0,0,0,.04);transition:box-shadow .2s}
+.card:hover{box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.06)}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:9999px;font-size:11.5px;font-weight:600;letter-spacing:.01em;white-space:nowrap}
+.pill-red{background:var(--red-bg);color:var(--red-text);border:1px solid var(--red-border)}
+.pill-green{background:var(--green-bg);color:var(--green-text);border:1px solid var(--green-border)}
+.pill-amber{background:var(--amber-bg);color:var(--amber-text);border:1px solid var(--amber-border)}
+.pill-blue{background:var(--blue-bg);color:var(--blue-text);border:1px solid var(--blue-border)}
+.pill-gray{background:var(--slate-100);color:var(--slate-500);border:1px solid var(--slate-200)}
+.code-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--slate-500);background:var(--slate-100);padding:1px 6px;border-radius:4px}
+.cmd-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--blue-text);background:var(--blue-bg);padding:2px 8px;border-radius:4px;border:1px solid var(--blue-border)}
+.progress-bar{height:6px;background:var(--slate-100);border-radius:3px;overflow:hidden}
+.progress-bar .fill{height:100%;border-radius:3px;transition:width .4s}
+.fill-red{background:linear-gradient(90deg,#EF4444,#F87171)}
+.fill-amber{background:linear-gradient(90deg,#F59E0B,#FBBF24)}
+.fill-green{background:linear-gradient(90deg,#10B981,#34D399)}
+.fill-blue{background:linear-gradient(90deg,#3B82F6,#60A5FA)}
+.table-row{cursor:pointer;transition:background .12s}
+.table-row:hover{background:#F8FAFC}
+.detail-row{display:none}
+.detail-row.open{display:table-row}
+.detail-row td{background:#FAFBFC;border-bottom:2px solid var(--slate-200)}
+.spinner{width:32px;height:32px;border:3px solid var(--slate-200);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Sidebar */
+#sidebar{position:fixed;top:0;left:0;width:200px;height:100vh;background:#fff;border-right:1px solid var(--slate-200);display:flex;flex-direction:column;z-index:40;box-shadow:2px 0 8px rgba(0,0,0,.04)}
+#sidebar .brand{padding:20px 16px 16px;border-bottom:1px solid var(--slate-100)}
+#sidebar .brand h1{font-family:'DM Serif Display','Noto Serif SC',serif;font-size:15px;color:var(--slate-900);margin:0 0 2px}
+#sidebar .brand p{font-size:11px;color:var(--slate-400);margin:0}
+#sidebar nav{flex:1;padding:12px 8px;overflow-y:auto}
+#sidebar nav a{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;font-size:13px;font-weight:500;color:var(--slate-500);text-decoration:none;margin-bottom:2px;transition:background .15s,color .15s;cursor:pointer}
+#sidebar nav a:hover{background:var(--slate-50);color:var(--slate-700)}
+#sidebar nav a.active{background:var(--blue-bg);color:var(--blue-text);font-weight:600}
+#sidebar nav a svg{width:15px;height:15px;flex-shrink:0}
+#sidebar .sidebar-footer{padding:12px 16px;border-top:1px solid var(--slate-100);font-size:11px;color:var(--slate-400)}
+/* Layout */
+#main-wrap{margin-left:200px;display:flex;flex-direction:column;min-height:100vh}
+#topbar{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--slate-200);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+#topbar .topbar-left{display:flex;align-items:center;gap:12px}
+#topbar .date-info{font-size:13px;font-weight:500;color:var(--slate-700)}
+#topbar .pills-row{display:flex;gap:6px;flex-wrap:wrap}
+#topbar .updated{font-size:11px;color:var(--slate-400)}
+.health-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
+.dot-green{background:#10B981;box-shadow:0 0 6px rgba(16,185,129,.5)}
+.dot-amber{background:#F59E0B;box-shadow:0 0 6px rgba(245,158,11,.5)}
+.dot-red{background:#EF4444;box-shadow:0 0 6px rgba(239,68,68,.5)}
+.dot-gray{background:#94A3B8}
+/* Pages */
+.page{display:none;padding:24px;animation:fadeIn .2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.page-title{font-family:'DM Serif Display','Noto Serif SC',serif;font-size:20px;color:var(--slate-900);margin:0 0 16px}
+/* Health cards */
+.holding-card{background:#fff;border:1px solid var(--slate-200);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;transition:box-shadow .2s}
+.holding-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.07)}
+/* Metric cards */
+.metric-card{background:#fff;border:1px solid var(--slate-200);border-radius:12px;padding:16px 18px}
+.metric-label{font-size:11px;color:var(--slate-400);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.metric-value{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--slate-900)}
+/* Issue rows */
+.issue-row{padding:12px 16px;border-radius:8px;border:1px solid var(--slate-200);margin-bottom:8px;background:#fff}
+.issue-critical{border-left:3px solid var(--red);background:linear-gradient(90deg,var(--red-bg),#fff 20%)}
+.issue-warning{border-left:3px solid var(--amber);background:linear-gradient(90deg,var(--amber-bg),#fff 20%)}
+.issue-info{border-left:3px solid var(--blue)}
+/* Research task */
+.research-item{padding:12px 16px;border-radius:8px;border:1px solid var(--slate-200);background:#fff;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+/* Task action btns */
+.btn-sm{padding:4px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid;transition:opacity .15s}
+.btn-sm:hover{opacity:.8}
+.btn-complete{background:var(--green-bg);color:var(--green-text);border-color:var(--green-border)}
+.btn-defer{background:var(--amber-bg);color:var(--amber-text);border-color:var(--amber-border)}
+.btn-skip{background:var(--slate-100);color:var(--slate-500);border-color:var(--slate-200)}
+/* Big health banner */
+.health-banner{border-radius:14px;padding:20px 24px;margin-bottom:20px}
+.banner-green{background:var(--green-bg);border:1px solid var(--green-border)}
+.banner-amber{background:var(--amber-bg);border:1px solid var(--amber-border)}
+.banner-red{background:var(--red-bg);border:1px solid var(--red-border)}
+/* Check items */
+.check-item{display:flex;align-items:flex-start;gap:10px;padding:7px 10px;border-radius:6px;font-size:12px}
+.check-pass{background:var(--green-bg)}
+.check-warn{background:var(--amber-bg);font-weight:600}
+.check-fail{background:var(--red-bg);font-weight:600}
+.check-skip{background:var(--slate-100)}
+.check-icon{font-size:13px;flex-shrink:0;margin-top:1px}
+/* Evidence blocks */
+.ev-fact{border-left:3px solid var(--slate-300);background:var(--slate-50);padding:8px 12px;border-radius:0 6px 6px 0;margin-bottom:6px;font-size:12px}
+.ev-insight{border-left:3px solid var(--blue);background:var(--blue-bg);padding:8px 12px;border-radius:0 6px 6px 0;margin-bottom:6px;font-size:12px;color:var(--blue-text)}
+.ev-action{border-left:3px solid var(--amber);background:var(--amber-bg);padding:8px 12px;border-radius:0 6px 6px 0;margin-bottom:6px;font-size:12px;color:var(--amber-text)}
+</style>
+</head>
+<body class="antialiased">
+
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div class="brand">
+    <h1>投资管理台</h1>
+    <p id="sidebar-date">加载中...</p>
+  </div>
+  <nav>
+    <a onclick="showPage('page-premarket')" id="nav-page-premarket" class="active">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      盘前执行
+    </a>
+    <a onclick="showPage('page-holdings')" id="nav-page-holdings">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      持仓健康
+    </a>
+    <a onclick="showPage('page-risk')" id="nav-page-risk">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      风险合规
+    </a>
+    <a onclick="showPage('page-goals')" id="nav-page-goals">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      目标进度
+    </a>
+    <a onclick="showPage('page-research')" id="nav-page-research">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      研究任务
+    </a>
+    <a onclick="showPage('page-data-quality')" id="nav-page-data-quality">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      数据质量
+    </a>
+  </nav>
+  <div class="sidebar-footer" id="sidebar-footer">v2 · portfolio.db</div>
+</aside>
+
+<!-- Main -->
+<div id="main-wrap">
+  <!-- Topbar -->
+  <header id="topbar">
+    <div class="topbar-left">
+      <span class="health-dot dot-gray" id="health-dot"></span>
+      <span id="state-label" style="font-size:12px;color:var(--slate-500);margin-right:4px"></span>
+      <span class="date-info" id="topbar-date">--</span>
+      <div class="pills-row" id="topbar-pills">
+        <span class="pill pill-gray">加载中</span>
+      </div>
+    </div>
+    <span class="updated" id="topbar-updated">--</span>
+  </header>
+
+  <!-- Pages -->
+  <div style="flex:1">
+
+    <!-- 盘前执行 -->
+    <div id="page-premarket" class="page active">
+      <h2 class="page-title">盘前执行</h2>
+      <div id="premarket-content"><div style="display:flex;justify-content:center;padding:60px 0"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- 持仓健康 -->
+    <div id="page-holdings" class="page">
+      <h2 class="page-title">持仓健康</h2>
+      <div id="holdings-content"><div style="display:flex;justify-content:center;padding:60px 0"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- 风险合规 -->
+    <div id="page-risk" class="page">
+      <h2 class="page-title">风险合规</h2>
+      <div id="risk-content"><div style="display:flex;justify-content:center;padding:60px 0"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- 目标进度 -->
+    <div id="page-goals" class="page">
+      <h2 class="page-title">目标进度</h2>
+      <div id="goals-content"><div style="display:flex;justify-content:center;padding:60px 0"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- 研究任务 -->
+    <div id="page-research" class="page">
+      <h2 class="page-title">研究任务</h2>
+      <div id="research-content"><div style="display:flex;justify-content:center;padding:60px 0"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- 数据质量 -->
+    <div id="page-data-quality" class="page">
+      <h2 class="page-title">数据质量</h2>
+      <div id="data-quality-content"><div style="display:flex;justify-content:center;padding:60px 0"><div class="spinner"></div></div></div>
+    </div>
+
+  </div>
+</div>
+<script>
+// ─── State ───────────────────────────────────────────────
+const loaded = {};
+let currentPage = 'page-premarket';
+const checksCache = {};
+
+// ─── Navigation ──────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('nav-' + id).classList.add('active');
+  currentPage = id;
+  if (!loaded[id]) { loadPage(id); loaded[id] = true; }
+}
+
+function loadPage(id) {
+  const map = {
+    'page-premarket': loadPremarket,
+    'page-holdings': loadHoldings,
+    'page-risk': loadRisk,
+    'page-goals': loadGoals,
+    'page-research': loadResearch,
+    'page-data-quality': loadDataQuality,
+  };
+  if (map[id]) map[id]();
+}
+
+// ─── Helpers ─────────────────────────────────────────────
+async function apiFetch(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+function errHtml(msg) {
+  return '<div class="card" style="padding:40px;text-align:center;color:var(--slate-400)"><div style="font-size:13px;font-weight:500;margin-bottom:4px">数据加载失败</div><div style="font-size:12px">' + msg + '</div></div>';
+}
+
+function fmt(n, dec) { dec = dec ?? 1; return n == null ? '--' : Number(n).toFixed(dec); }
+function fmtPct(n) { return n == null ? '--' : (n > 0 ? '+' : '') + fmt(n) + '%'; }
+function colorPct(n) { return n > 0 ? 'color:var(--green)' : n < 0 ? 'color:var(--red)' : ''; }
+
+function fmtUpdated(s) {
+  if (!s) return '--';
+  try { return new Date(s).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}); } catch(e) { return s; }
+}
+
+function inferDirection(task) {
+  const t = ((task.title || '') + (task.action_type || '')).toLowerCase();
+  if (/卖|减仓|止损|reduce|sell|exit/.test(t)) return 'sell';
+  return 'buy';
+}
+
+function confidencePill(c) {
+  if (c == null) return '';
+  if (c >= 1.0) return '<span class="pill pill-green" style="font-size:10px">已验证</span>';
+  if (c >= 0.9) return '<span class="pill pill-blue" style="font-size:10px">高可信</span>';
+  if (c >= 0.6) return '<span class="pill pill-amber" style="font-size:10px">中可信</span>';
+  return '<span class="pill pill-red" style="font-size:10px">低可信</span>';
+}
+
+// ─── Topbar ──────────────────────────────────────────────
+async function refreshTopbar() {
+  try {
+    const d = await apiFetch('/api/operating-state/today');
+    const dot = document.getElementById('health-dot');
+    const dotMap = {green:'dot-green', yellow:'dot-amber', red:'dot-red'};
+    dot.className = 'health-dot ' + (dotMap[d.health_light] || 'dot-gray');
+    document.getElementById('state-label').textContent = d.state_label || '';
+    const tradingTag = d.is_trading_day ? '交易日' : '非交易日';
+    const dateStr = (d.state_date || '') + (d.weekday ? ' ' + d.weekday : '') + ' · ' + tradingTag;
+    document.getElementById('topbar-date').textContent = dateStr;
+    document.getElementById('sidebar-date').textContent = d.state_date || '';
+    const ex = d.executable_count || 0, cf = d.confirm_count || 0, mn = d.monitor_count || 0;
+    document.getElementById('topbar-pills').innerHTML =
+      '<span class="pill pill-' + (ex > 0 ? 'red' : 'gray') + '">可执行 ' + ex + '</span>' +
+      '<span class="pill pill-' + (cf > 0 ? 'amber' : 'gray') + '">待确认 ' + cf + '</span>' +
+      '<span class="pill pill-blue">监控 ' + mn + '</span>';
+    document.getElementById('topbar-updated').textContent = '更新 ' + fmtUpdated(d.updated_at);
+  } catch(e) {}
+}
+
+// ─── Checks lazy loader ──────────────────────────────────
+async function loadChecks(taskId, containerId) {
+  if (checksCache[taskId]) { renderChecks(taskId, containerId); return; }
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '<div style="display:flex;justify-content:center;padding:12px"><div class="spinner" style="width:20px;height:20px;border-width:2px"></div></div>';
+  try {
+    checksCache[taskId] = await apiFetch('/api/tasks/' + taskId + '/checks');
+    renderChecks(taskId, containerId);
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--slate-400);padding:8px">校验数据加载失败: ' + e.message + '</div>';
+  }
+}
+
+function renderChecks(taskId, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const data = checksCache[taskId];
+  if (!data || !data.checks) { el.innerHTML = '<div style="font-size:12px;color:var(--slate-400)">无校验数据</div>'; return; }
+  const statusMap = {
+    pass: {cls:'check-pass', icon:'<span style="color:var(--green)">✓</span>'},
+    warn: {cls:'check-warn', icon:'<span style="color:var(--amber)">⚠</span>'},
+    fail: {cls:'check-fail', icon:'<span style="color:var(--red)">✕</span>'},
+    skip: {cls:'check-skip', icon:'<span style="color:var(--slate-400)">—</span>'},
+  };
+  const summary = !data.all_pass
+    ? '<div style="display:flex;gap:8px;margin-bottom:8px">' +
+      (data.fail_count > 0 ? '<span class="pill pill-red">' + data.fail_count + ' 项不通过</span>' : '') +
+      (data.warn_count > 0 ? '<span class="pill pill-amber">' + data.warn_count + ' 项警告</span>' : '') +
+      '</div>'
+    : '<div style="margin-bottom:8px"><span class="pill pill-green">✓ 全部通过</span></div>';
+  const items = data.checks.map(function(c) {
+    const s = statusMap[c.status] || statusMap['skip'];
+    const manualTag = !c.auto ? ' <span style="font-size:10px;color:var(--slate-400);background:var(--slate-100);padding:1px 5px;border-radius:3px;border:1px solid var(--slate-200)">需人工确认</span>' : '';
+    return '<div class="check-item ' + s.cls + '">' +
+      '<span class="check-icon">' + s.icon + '</span>' +
+      '<div><span style="font-weight:600;margin-right:4px">' + (c.name || '--') + '</span>' + manualTag +
+      '<span style="color:var(--slate-600);margin-left:4px">' + (c.message || '') + '</span></div>' +
+      '</div>';
+  }).join('');
+  el.innerHTML = summary + items;
+}
+
+// ─── Evidence parser ─────────────────────────────────────
+function renderEvidence(task) {
+  let evJson = null;
+  try { evJson = task.evidence_json ? JSON.parse(task.evidence_json) : null; } catch(e) {}
+  if (!evJson) return '';
+  if (evJson.fact || evJson.insight || evJson.action) {
+    return (evJson.fact ? '<div class="ev-fact"><span style="font-size:10px;font-weight:700;color:var(--slate-500);text-transform:uppercase;letter-spacing:.05em">事实</span><div style="margin-top:3px">' + evJson.fact + '</div></div>' : '') +
+      (evJson.insight ? '<div class="ev-insight"><span style="font-size:10px;font-weight:700;letter-spacing:.05em">解读</span><div style="margin-top:3px">' + evJson.insight + '</div></div>' : '') +
+      (evJson.action ? '<div class="ev-action"><span style="font-size:10px;font-weight:700;letter-spacing:.05em">建议动作</span><div style="margin-top:3px">' + evJson.action + '</div></div>' : '');
+  }
+  const entries = Object.entries(evJson).map(function(kv) {
+    return '<div style="display:flex;gap:8px;font-size:12px;padding:3px 0"><span style="color:var(--slate-400);min-width:80px">' + kv[0] + '</span><span style="color:var(--slate-700)">' + kv[1] + '</span></div>';
+  }).join('');
+  return '<div class="ev-fact">' + entries + '</div>';
+}
+
+// ─── Page: 盘前执行 ──────────────────────────────────────
+async function loadPremarket() {
+  const el = document.getElementById('premarket-content');
+  try {
+    const [state, exTasks, cfTasks] = await Promise.all([
+      apiFetch('/api/operating-state/today'),
+      apiFetch('/api/tasks?layer=executable'),
+      apiFetch('/api/tasks?layer=confirm'),
+    ]);
+    const allTasks = [].concat(Array.isArray(exTasks) ? exTasks : [], Array.isArray(cfTasks) ? cfTasks : []);
+    const hl = state.health_light || 'unknown';
+    const bannerCls = {green:'banner-green', yellow:'banner-amber', red:'banner-red'}[hl] || 'banner-amber';
+    const bannerDotCls = {green:'dot-green', yellow:'dot-amber', red:'dot-red'}[hl] || 'dot-amber';
+    const bannerTitle = {
+      green: '✓ 组合状态正常',
+      yellow: '⚠ 有待确认事项',
+      red: '⛔ 有紧急事项需立即处理',
+    }[hl] || state.state_label || '待确认';
+    const ex = state.executable_count || 0, cf = state.confirm_count || 0, mn = state.monitor_count || 0;
+
+    let rows = allTasks.map(function(t, i) {
+      const layer = t.decision_layer || 'monitor';
+      const pillCls = {executable:'pill-red', confirm:'pill-amber', monitor:'pill-blue'}[layer] || 'pill-gray';
+      const pillLabel = {executable:'可执行', confirm:'待确认', monitor:'监控'}[layer] || layer;
+      const dir = inferDirection(t);
+      const dirBadge = dir === 'sell'
+        ? '<span class="pill pill-red" style="font-size:10px">卖出</span>'
+        : '<span class="pill pill-green" style="font-size:10px">买入</span>';
+      const cmd = t.suggested_command ? '<span class="cmd-tag">' + t.suggested_command + '</span>' : '--';
+      const checksId = 'checks-' + i;
+      const evidHtml = renderEvidence(t);
+      const blocking = t.blocking_reason
+        ? '<div style="margin-top:8px;padding:8px 12px;background:var(--amber-bg);border-left:3px solid var(--amber);border-radius:0 6px 6px 0;font-size:12px;color:var(--amber-text)">⚠ ' + t.blocking_reason + '</div>'
+        : '';
+      const confPill = confidencePill(t.confidence);
+      const detailInner =
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px 20px">' +
+          '<div>' +
+            '<div style="font-size:11px;font-weight:700;color:var(--slate-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">执行前校验</div>' +
+            '<div id="' + checksId + '"><div style="font-size:12px;color:var(--slate-400)">展开后加载...</div></div>' +
+          '</div>' +
+          '<div>' +
+            '<div style="font-size:11px;font-weight:700;color:var(--slate-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">事实 · 解读 · 动作</div>' +
+            (evidHtml || '<div style="font-size:12px;color:var(--slate-400)">暂无 evidence</div>') +
+            blocking +
+            (confPill ? '<div style="margin-top:8px;display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--slate-400)">数据可信度</span>' + confPill + '</div>' : '') +
+          '</div>' +
+        '</div>';
+      return '<tr class="table-row" onclick="toggleTaskRowChecks(\'' + 'dr-' + i + '\',\'cv-' + i + '\',\'' + t.id + '\',\'' + checksId + '\')">' +
+        '<td style="padding:12px 8px 12px 12px"><span class="pill ' + pillCls + '">' + pillLabel + '</span></td>' +
+        '<td style="padding:12px 8px">' +
+          '<div style="font-weight:500;color:var(--slate-900);font-size:13px">' + (t.title || '--') + '</div>' +
+          '<div style="margin-top:3px">' + dirBadge + (t.related_code ? ' <span class="code-tag">' + t.related_code + '</span>' : '') + '</div>' +
+        '</td>' +
+        '<td style="padding:12px 6px;font-size:12px;color:var(--slate-500)">' + (t.due_date || '--') + '</td>' +
+        '<td style="padding:12px 8px">' + cmd + '</td>' +
+        '<td style="padding:12px 10px 12px 6px;white-space:nowrap">' +
+          '<button class="btn-sm btn-complete" onclick="event.stopPropagation();taskAction(\'' + t.id + '\',\'complete\',this)">完成</button>' +
+          '<button class="btn-sm btn-defer" style="margin-left:4px" onclick="event.stopPropagation();taskAction(\'' + t.id + '\',\'defer\',this)">延期</button>' +
+          '<button class="btn-sm btn-skip" style="margin-left:4px" onclick="event.stopPropagation();taskAction(\'' + t.id + '\',\'skip\',this)">跳过</button>' +
+        '</td>' +
+        '<td style="padding:12px 8px;color:var(--slate-400)">' +
+          '<svg id="cv-' + i + '" xmlns="http://www.w3.org/2000/svg" style="width:15px;height:15px;transition:transform .3s" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>' +
+        '</td>' +
+        '</tr>' +
+        '<tr id="dr-' + i + '" class="detail-row"><td colspan="6" style="padding:0">' +
+          '<div style="background:#FAFBFC;border-bottom:2px solid var(--slate-200)">' + detailInner + '</div>' +
+        '</td></tr>';
+    }).join('');
+
+    if (!allTasks.length) rows = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--slate-400);font-size:13px">今日暂无待执行任务</td></tr>';
+
+    el.innerHTML =
+      '<div class="health-banner ' + bannerCls + '">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">' +
+          '<span class="health-dot ' + bannerDotCls + '"></span>' +
+          '<span style="font-family:\'DM Serif Display\',serif;font-size:18px;color:var(--slate-900)">' + bannerTitle + '</span>' +
+        '</div>' +
+        '<p style="margin:0;font-size:13px;color:var(--slate-700)">' + (state.top_message || '') + '</p>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">' +
+        '<div class="metric-card" style="border-top:3px solid var(--red)"><div class="metric-label">可执行</div><div class="metric-value" style="color:var(--red)">' + ex + '</div></div>' +
+        '<div class="metric-card" style="border-top:3px solid var(--amber)"><div class="metric-label">待确认</div><div class="metric-value" style="color:var(--amber)">' + cf + '</div></div>' +
+        '<div class="metric-card" style="border-top:3px solid var(--blue)"><div class="metric-label">仅监控</div><div class="metric-value" style="color:var(--blue)">' + mn + '</div></div>' +
+      '</div>' +
+      '<div class="card" style="overflow:hidden"><div style="overflow-x:auto">' +
+        '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+          '<thead><tr style="background:var(--slate-50);font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--slate-500);font-weight:600">' +
+            '<th style="text-align:left;padding:10px 8px 10px 12px">状态</th>' +
+            '<th style="text-align:left;padding:10px 8px">标的 / 方向</th>' +
+            '<th style="text-align:left;padding:10px 6px">到期</th>' +
+            '<th style="text-align:left;padding:10px 8px">建议命令</th>' +
+            '<th style="padding:10px 6px">操作</th>' +
+            '<th style="padding:10px 8px"></th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+      '</div></div>';
+  } catch(e) { el.innerHTML = errHtml(e.message); }
+}
+
+function toggleTaskRowChecks(rowId, chevId, taskId, checksContainerId) {
+  const row = document.getElementById(rowId);
+  const chev = document.getElementById(chevId);
+  if (!row) return;
+  const open = row.classList.toggle('open');
+  if (chev) chev.style.transform = open ? 'rotate(180deg)' : '';
+  if (open) loadChecks(taskId, checksContainerId);
+}
+
+async function taskAction(id, action, btn) {
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    await fetch('/api/tasks/' + id + '/' + action, {method:'POST'});
+    const row = btn.closest('tr');
+    if (row) row.style.opacity = '.4';
+    btn.textContent = '✓';
+  } catch(e) { btn.textContent = '失败'; btn.disabled = false; }
+}
+
+// ─── Page: 持仓健康 ──────────────────────────────────────
+async function loadHoldings() {
+  const el = document.getElementById('holdings-content');
+  try {
+    const d = await apiFetch('/api/portfolio/health');
+    const LP={act:'pill-red',review:'pill-amber',watch:'pill-blue',healthy:'pill-green'};
+    const LT={act:'需行动',review:'待复查',watch:'观察',healthy:'正常'};
+    const items=(d.holdings||[]).slice().sort((a,b)=>({act:0,review:1,watch:2,healthy:3}[a.health_label]??4)-({act:0,review:1,watch:2,healthy:3}[b.health_label]??4));
+    const tHtml=(d.tranches||[]).map(tr=>'<div class="metric-card" style="border-top:3px solid var(--blue)"><div class="metric-label">'+tr.tranche+'档 <span style="font-size:10px;color:var(--slate-400);font-weight:400">'+(tr.denominator_label||'占ABC档')+'</span></div><div style="display:flex;align-items:baseline;gap:8px"><div class="metric-value" style="font-size:18px">'+(tr.total_value!=null?(tr.total_value/10000).toFixed(1)+'万':'--')+'</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:var(--blue-text)">'+(tr.weight_of_abc!=null?(tr.weight_of_abc*100).toFixed(1)+'%':'--')+'</div></div></div>').join('');
+    const abc=d.abc_total!=null?(d.abc_total/10000).toFixed(1)+'万':'--';
+    const sum='<div style="margin-bottom:20px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><h3 style="font-size:13px;font-weight:600;color:var(--slate-700);margin:0">档位汇总 <span style="font-size:11px;color:var(--slate-400);font-weight:400">（不含D档RSU）</span></h3><span style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:var(--slate-500)">ABC合计 '+abc+'</span></div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">'+(tHtml||'<div style="color:var(--slate-400);font-size:12px">暂无数据</div>')+'</div></div>';
+    function tsHtml(ts){if(ts==null)return '<span style="color:var(--slate-400)">—</span>';const c=['','var(--red)','var(--red)','var(--amber)','var(--blue)','var(--green)'][Math.round(ts)]||'var(--slate-500)';return '<span style="font-family:\'IBM Plex Mono\',monospace;font-weight:700;color:'+c+'">'+ts+'</span>';}
+    const cards=items.map(h=>{
+      const pill=LP[h.health_label]||'pill-gray',lbl=LT[h.health_label]||h.health_label||'--';
+      const pnl=h.pnl_pct!=null?'<span style="'+colorPct(h.pnl_pct)+';font-weight:600">'+fmtPct(h.pnl_pct*100)+'</span>':'--';
+      const dd=h.drawdown_pct!=null?'<span style="color:var(--red)">'+fmt(h.drawdown_pct*100)+'%</span>':'--';
+      const wt=(h.weight_total!=null?fmt(h.weight_total*100)+'%':'--')+' / '+(h.weight_tranche!=null?fmt(h.weight_tranche*100)+'%':'--');
+      const alert=h.alert_count>0?'<span style="background:var(--amber-bg);color:var(--amber-text);border:1px solid var(--amber-border);border-radius:9999px;font-size:11px;font-weight:600;padding:2px 7px">'+h.alert_count+' 告警</span>':'';
+      const act=h.suggested_action?'<div style="margin-top:8px;padding:7px 10px;background:var(--red-bg);border-left:3px solid var(--red);border-radius:0 6px 6px 0;font-size:12px;color:var(--red-text)">'+h.suggested_action+'</div>':'';
+      return '<div class="holding-card"><div style="display:flex;align-items:center;justify-content:space-between"><div style="display:flex;align-items:center;gap:6px"><span style="font-weight:600;color:var(--slate-900)">'+(h.name||h.code||'--')+'</span><span class="code-tag">'+(h.code||'--')+'</span>'+(h.tranche?'<span style="font-size:10px;color:var(--slate-400);background:var(--slate-100);padding:1px 5px;border-radius:3px">'+h.tranche+'档</span>':'')+'</div><div style="display:flex;align-items:center;gap:5px"><span class="pill '+pill+'">'+lbl+'</span>'+alert+'</div></div><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px"><div><div style="font-size:10px;color:var(--slate-400);margin-bottom:2px">健康分</div><div style="font-family:\'IBM Plex Mono\',monospace;font-weight:600">'+(h.health_score!=null?h.health_score:'--')+'</div></div><div><div style="font-size:10px;color:var(--slate-400);margin-bottom:2px">盈亏</div><div style="font-family:\'IBM Plex Mono\',monospace">'+pnl+'</div></div><div><div style="font-size:10px;color:var(--slate-400);margin-bottom:2px">回撤</div><div style="font-family:\'IBM Plex Mono\',monospace">'+dd+'</div></div><div><div style="font-size:10px;color:var(--slate-400);margin-bottom:2px">仓位(总/档)</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">'+wt+'</div></div><div><div style="font-size:10px;color:var(--slate-400);margin-bottom:2px">论点分</div><div>'+tsHtml(h.thesis_score)+'</div></div></div>'+act+'</div>';
+    }).join('');
+    el.innerHTML=sum+'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px">'+(cards||'<div class="card" style="padding:40px;text-align:center;color:var(--slate-400)">暂无持仓数据</div>')+'</div>';
+  } catch(e){el.innerHTML=errHtml(e.message);}
+}
+
+// ─── Page: 风险合规 ──────────────────────────────────────
+async function loadRisk() {
+  const el = document.getElementById('risk-content');
+  try {
+    const d = await apiFetch('/api/risk/summary');
+    const m=d.metrics||{},breaches=d.rule_breaches||[],corrs=d.high_correlations||[],contribs=d.risk_contributions||[],pd=d.pseudo_div||{};
+    const metCards=[['组合波动率',m.portfolio_vol,'%'],['最大回撤',m.max_drawdown,'%'],['VaR 95%',m.var_95,'%'],['Sharpe',m.sharpe_ratio,'']].map(x=>'<div class="metric-card"><div class="metric-label">'+x[0]+'</div><div class="metric-value">'+(x[1]!=null?fmt(x[1])+x[2]:'--')+'</div></div>').join('');
+    const psBanner=pd.detected?'<div style="padding:12px 16px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:10px;margin-bottom:16px;display:flex;align-items:center;gap:10px"><span style="font-size:16px">⚠</span><div><span style="font-weight:700;color:var(--red-text)">伪分散风险：</span><span style="color:var(--red-text);font-size:13px">'+(pd.message||'')+'</span>'+(pd.theme?'<span style="margin-left:8px;font-size:11px;color:var(--red-text);opacity:.7">主题：'+pd.theme+'</span>':'')+'</div></div>':'';
+    const brRows=breaches.map(b=>'<div class="issue-row '+(b.severity==='critical'?'issue-critical':'issue-warning')+'"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="pill '+(b.severity==='critical'?'pill-red':'pill-amber')+'">'+(b.severity||'warning')+'</span><span style="font-weight:600;font-size:13px">'+(b.rule_name||'--')+'</span></div><div style="font-size:12px;color:var(--slate-600)">'+(b.message||'')+'</div></div>').join('');
+    const crRows=corrs.map(c=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--slate-200);border-radius:8px;background:#fff;margin-bottom:6px"><div style="display:flex;align-items:center;gap:6px">'+(c.name_a?'<span style="font-size:13px;color:var(--slate-700)">'+c.name_a+'</span>':'')+'<span class="code-tag">'+(c.code_a||'--')+'</span><span style="font-size:12px;color:var(--slate-400)">与</span>'+(c.name_b?'<span style="font-size:13px;color:var(--slate-700)">'+c.name_b+'</span>':'')+'<span class="code-tag">'+(c.code_b||'--')+'</span></div><span style="font-family:\'IBM Plex Mono\',monospace;font-weight:600;color:var(--amber)">r='+fmt(c.corr_value,2)+'</span></div>').join('');
+    const sc=contribs.slice().sort((a,b)=>(b.risk_contrib_pct||0)-(a.risk_contrib_pct||0));
+    const mx=sc.length?(sc[0].risk_contrib_pct||0):1;
+    const ctRows=sc.map(c=>{const bw=mx>0?Math.round(c.risk_contrib_pct/mx*100):0;const fc=c.risk_contrib_pct>0.3?'fill-red':c.risk_contrib_pct>0.15?'fill-amber':'fill-blue';return '<tr style="border-bottom:1px solid var(--slate-100)"><td style="padding:8px 12px;font-size:13px;font-weight:500;color:var(--slate-900)">'+(c.name||c.code||'--')+' <span class="code-tag">'+(c.code||'')+'</span></td><td style="padding:8px 8px;font-size:11px;color:var(--slate-400)">'+(c.tranche||'')+'</td><td style="padding:8px 8px;font-family:\'IBM Plex Mono\',monospace;font-size:12px">'+(c.weight!=null?fmt(c.weight*100)+'%':'--')+'</td><td style="padding:8px 12px;min-width:140px"><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="flex:1"><div class="fill '+fc+'" style="width:'+bw+'%"></div></div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;font-weight:600;min-width:36px;text-align:right">'+fmt(c.risk_contrib_pct*100)+'%</span></div></td></tr>';}).join('');
+    const ctSec=contribs.length?'<div style="margin-top:20px"><h3 style="font-size:13px;font-weight:600;color:var(--slate-700);margin-bottom:10px">风险贡献分解</h3><div class="card" style="overflow:hidden"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:var(--slate-50);font-size:11px;text-transform:uppercase;color:var(--slate-500);font-weight:600"><th style="text-align:left;padding:8px 12px">持仓</th><th style="text-align:left;padding:8px 8px">档</th><th style="text-align:left;padding:8px 8px">仓位</th><th style="text-align:left;padding:8px 12px">风险贡献</th></tr></thead><tbody>'+ctRows+'</tbody></table></div></div>':'';
+    el.innerHTML=psBanner+'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">'+metCards+'</div>'+(breaches.length?'<div style="margin-bottom:20px"><h3 style="font-size:13px;font-weight:600;color:var(--slate-700);margin-bottom:10px">活跃违规 ('+breaches.length+')</h3>'+brRows+'</div>':'<div class="card" style="padding:14px 16px;margin-bottom:20px;background:var(--green-bg);border:1px solid var(--green-border);color:var(--green-text);font-size:13px">✓ 暂无违规</div>')+ctSec+(corrs.length?'<div style="margin-top:20px"><h3 style="font-size:13px;font-weight:600;color:var(--slate-700);margin-bottom:10px">高相关持仓对</h3>'+crRows+'</div>':'');
+  } catch(e){el.innerHTML=errHtml(e.message);}
+}
+
+// ─── Page: 目标进度 ──────────────────────────────────────
+async function loadGoals() {
+  const el = document.getElementById('goals-content');
+  try {
+    const d = await apiFetch('/api/goals/progress');
+    const L=d.latest||{};
+    const ann=(L.target_annual_return!=null?L.target_annual_return*100:d.annual_target_return)??10;
+    const act=L.actual_ytd_return!=null?L.actual_ytd_return*100:(d.actual_ytd_return??0);
+    const ytd=L.target_ytd_return!=null?L.target_ytd_return*100:(d.target_ytd??5);
+    const gap=L.progress_gap!=null?L.progress_gap*100:(act-ytd);
+    const req=L.required_return_remaining!=null?L.required_return_remaining*100:null;
+    const mdd=L.max_drawdown!=null?L.max_drawdown*100:null;
+    const bn=L.benchmark_return_ytd!=null?L.benchmark_return_ytd*100:null;
+    const c6=[['年度目标','+'+fmt(ann)+'%','var(--blue)'],['YTD 实际',fmtPct(act),act>=0?'var(--green)':'var(--red)'],['进度差距',fmtPct(gap),gap>=0?'var(--green)':'var(--amber)'],['剩余所需年化',req!=null?fmtPct(req):'--',req!=null&&req>ann?'var(--red)':'var(--slate-900)'],['最大回撤',mdd!=null?fmt(mdd)+'%':'--',mdd!=null&&mdd<-10?'var(--red)':'var(--slate-900)'],['沪深300 YTD',bn!=null?fmtPct(bn):'--',bn!=null&&bn>=0?'var(--green)':'var(--red)']].map(x=>'<div class="metric-card" style="border-top:3px solid '+x[2]+'"><div class="metric-label">'+x[0]+'</div><div class="metric-value" style="color:'+x[2]+';font-size:20px">'+x[1]+'</div></div>').join('');
+    const rm=Math.max(Math.abs(act),Math.abs(ytd),5);
+    const aw=Math.min(50,Math.abs(act)/rm*50);
+    const al=act>=0?50:(50-aw);
+    const prog='<div class="card" style="padding:20px 24px;margin-bottom:20px"><div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:13px"><span style="font-weight:600;color:var(--slate-700)">YTD 进度（相对阶段目标）</span><span style="font-family:\'IBM Plex Mono\',monospace">实际 '+fmtPct(act)+' / 阶段目标 '+fmtPct(ytd)+'</span></div><div style="position:relative;height:14px;background:var(--slate-100);border-radius:7px;overflow:visible;margin-bottom:6px"><div style="position:absolute;left:50%;top:0;width:2px;height:14px;background:var(--slate-400);z-index:2"></div><div style="position:absolute;left:'+al+'%;top:2px;width:'+aw+'%;height:10px;border-radius:5px;background:'+(act>=0?'var(--green)':'var(--red)')+';z-index:1"></div></div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--slate-400)"><span>—'+fmt(rm)+'%</span><span>0%</span><span>+'+fmt(rm)+'%</span></div></div>';
+    const attr=d.attribution||{};
+    const ha=attr&&(attr.timing_contrib!=null||attr.selection_contrib!=null||attr.allocation_contrib!=null);
+    const atHtml=ha?'<div class="card" style="padding:20px 24px;margin-bottom:20px"><h3 style="font-size:13px;font-weight:600;color:var(--slate-700);margin:0 0 12px">BHB 业绩归因</h3><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="font-size:11px;text-transform:uppercase;color:var(--slate-500);font-weight:600"><th style="text-align:left;padding:6px 0">维度</th><th style="text-align:right;padding:6px 0">贡献</th></tr></thead><tbody>'+[['时机贡献',attr.timing_contrib],['选股贡献',attr.selection_contrib],['配置贡献',attr.allocation_contrib]].map(r=>{if(r[1]==null)return '';const v=r[1]*100;return '<tr style="border-top:1px solid var(--slate-100)"><td style="padding:8px 0;color:var(--slate-700)">'+r[0]+'</td><td style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-weight:600;'+colorPct(v)+'">'+fmtPct(v)+'</td></tr>';}).join('')+'</tbody></table></div>':'';
+    el.innerHTML='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">'+c6+'</div>'+prog+atHtml+(d.notes?'<div class="card" style="padding:14px 16px"><p style="margin:0;font-size:12px;color:var(--slate-500)">'+d.notes+'</p></div>':'');
+  } catch(e){el.innerHTML=errHtml(e.message);}
+}
+
+// ─── Page: 研究任务 ──────────────────────────────────────
+async function loadResearch() {
+  const el = document.getElementById('research-content');
+  try {
+    const d = await apiFetch('/api/research/tasks');
+    const tasks=Array.isArray(d)?d:(d.tasks||[]);
+    const PP={high:'pill-red',medium:'pill-amber',low:'pill-gray'};
+    const GM={thesis_stale:'论点复查',causal_signal:'外部信号',monthly:'例行任务',quarterly:'例行任务'};
+    const groups={};
+    tasks.forEach(t=>{const g=GM[t.action_type]||'其他';if(!groups[g])groups[g]=[];groups[g].push(t);});
+    let html='';
+    ['论点复查','外部信号','例行任务','其他'].forEach(g=>{
+      if(!groups[g]||!groups[g].length)return;
+      html+='<div style="margin-bottom:20px"><h3 style="font-size:12px;font-weight:700;color:var(--slate-500);text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--slate-200)">'+g+'</h3>';
+      groups[g].forEach(t=>{
+        const src=t.source_module?'<span style="font-size:10px;color:var(--slate-400);background:var(--slate-100);padding:1px 5px;border-radius:3px;border:1px solid var(--slate-200)">'+t.source_module+'</span>':'';
+        const cmd=t.suggested_command?'<div style="margin-top:6px"><span class="cmd-tag">'+t.suggested_command+'</span></div>':'';
+        html+='<div class="research-item"><div style="flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px"><span class="pill '+(PP[t.priority]||'pill-gray')+'">'+(t.priority||'--')+'</span>'+(t.related_code?'<span class="code-tag">'+t.related_code+'</span>':'')+src+'</div><div style="font-weight:500;font-size:13px;color:var(--slate-900)">'+(t.title||'--')+'</div>'+cmd+'</div><div style="white-space:nowrap;text-align:right;flex-shrink:0"><div style="font-size:11px;color:var(--slate-400)">到期</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;font-weight:500">'+(t.due_date||'--')+'</div>'+(t.status?'<div style="margin-top:3px"><span class="pill '+(t.status==='pending'?'pill-amber':'pill-gray')+'" style="font-size:10px">'+t.status+'</span></div>':'')+'</div></div>';
+      });
+      html+='</div>';
+    });
+    el.innerHTML=html||'<div class="card" style="padding:40px;text-align:center;color:var(--slate-400);font-size:13px">暂无研究任务</div>';
+  } catch(e){el.innerHTML=errHtml(e.message);}
+}
+
+// ─── Page: 数据质量 ──────────────────────────────────────
+async function loadDataQuality() {
+  const el = document.getElementById('data-quality-content');
+  try {
+    const d = await apiFetch('/api/data-quality/issues');
+    const issues=d.issues||[];
+    const SP={critical:'pill-red',warning:'pill-amber',info:'pill-blue'};
+    const TB={critical:'issue-critical',warning:'issue-warning',info:'issue-info'};
+    const rows=issues.map((iss,i)=>{
+      const isMock=iss.data_quality==='mock'||iss.data_quality==='stale';
+      const mTag=isMock?'<span style="background:var(--red-bg);color:var(--red-text);border:1px solid var(--red-border);border-radius:9999px;font-size:10px;font-weight:700;padding:2px 7px">⛔ 不进入执行判断</span>':'';
+      const onclk='(function(){var b=document.getElementById(\'dq-b'+i+'\'),r=document.getElementById(\'dq-r'+i+'\');b.disabled=true;b.textContent=\'...\';fetch(\'/api/data-quality/suppress\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({issue_type:'+JSON.stringify(iss.type)+',code:'+JSON.stringify(iss.code||null)+',reason:\'用户已确认\'})}).then(function(){b.textContent=\'✓ 已确认\';b.style.background=\'var(--slate-100)\';b.style.color=\'var(--slate-400)\';r.style.opacity=\'.5\'}).catch(function(){b.textContent=\'失败\';b.disabled=false;})})()';
+      return '<div class="issue-row '+(TB[iss.severity]||'')+'" id="dq-r'+i+'"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px"><span class="pill '+(SP[iss.severity]||'pill-gray')+'">'+(iss.severity||'info')+'</span><span style="font-size:11px;color:var(--slate-400);font-family:\'IBM Plex Mono\',monospace">'+(iss.type||'--')+'</span><span style="font-weight:600;font-size:13px;color:var(--slate-900)">'+(iss.name||'--')+'</span>'+mTag+'</div><div style="font-size:12px;color:var(--slate-600);margin-bottom:6px">'+(iss.message||'')+'</div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+(iss.resolution?'<span class="cmd-tag">'+iss.resolution+'</span>':'')+'<button id="dq-b'+i+'" class="btn-sm" style="background:var(--blue-bg);color:var(--blue-text);border-color:var(--blue-border)" onclick="'+onclk+'">已确认</button></div></div>';
+    }).join('');
+    const crit=issues.filter(i=>i.severity==='critical').length;
+    const warn=issues.filter(i=>i.severity==='warning').length;
+    const mc=issues.filter(i=>i.data_quality==='mock'||i.data_quality==='stale').length;
+    el.innerHTML='<div style="padding:10px 16px;background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:10px;margin-bottom:16px;font-size:12px;color:var(--blue-text)">mock / 过期数据已联动降级为 <strong>blocked</strong>，确认后恢复为 <strong>confirm</strong></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"><div class="metric-card"><div class="metric-label">总问题数</div><div class="metric-value">'+issues.length+'</div></div><div class="metric-card" style="border-top:3px solid var(--red)"><div class="metric-label">严重</div><div class="metric-value" style="color:var(--red)">'+crit+'</div></div><div class="metric-card" style="border-top:3px solid var(--amber)"><div class="metric-label">警告</div><div class="metric-value" style="color:var(--amber)">'+warn+'</div></div><div class="metric-card" style="border-top:3px solid var(--red)"><div class="metric-label">Mock/过期</div><div class="metric-value" style="color:var(--red)">'+mc+'</div></div></div>'+(rows||'<div class="card" style="padding:14px 16px;background:var(--green-bg);border:1px solid var(--green-border);color:var(--green-text);font-size:13px">✓ 数据质量良好，暂无问题</div>');
+  } catch(e){el.innerHTML=errHtml(e.message);}
+}
+
+// ─── Init ─────────────────────────────────────────────────
+refreshTopbar();
+setInterval(refreshTopbar, 60000);
+loaded['page-premarket'] = true;
+loadPremarket();
+</script>
+</body>
+</html>

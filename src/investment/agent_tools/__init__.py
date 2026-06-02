@@ -52,6 +52,29 @@ from .causal import (
     causal_review_reject,
     causal_lifecycle_update,
 )
+# Phase 4: risk
+from .risk_engine import run_risk_engine, RiskReport
+# Phase 5: attribution
+from .attribution import run_attribution, AttributionResult
+# Phase 6: causal facade
+from .causal_facade import run_causal_insight, CausalInsightReport
+# Phase 7
+from .stock_screen import (
+    parse_screen_query, run_screen, save_strategy, list_strategies,
+    ScreenCriteria, ScreenResult,
+)
+from .calendar import (
+    run_calendar, create_task, complete_task, fill_rebalance_placeholder,
+    CalendarReport, CalendarTask,
+)
+from .cost_calculator import (
+    detect_market, calc_cost, save_cost_log, CostBreakdown,
+)
+from .behavior_guard import (
+    log_decision, run_behavior_check, BehaviorReport, BiasFlag,
+)
+# Phase 8: knowledge notes (边用边学)
+from .knowledge_notes import read_notes, append_concept, search_notes
 
 __all__ = [
     "ToolResult",
@@ -81,4 +104,19 @@ __all__ = [
     "translate_causal_layer", "translate_score", "translate_error_code",
     "translate_alert", "translate_alerts",
     "fmt_pct", "fmt_cny",
+    # Phase 4: risk
+    "run_risk_engine", "RiskReport",
+    # Phase 5: attribution
+    "run_attribution", "AttributionResult",
+    # Phase 6: causal facade
+    "run_causal_insight", "CausalInsightReport",
+    # Phase 7
+    "parse_screen_query", "run_screen", "save_strategy", "list_strategies",
+    "ScreenCriteria", "ScreenResult",
+    "run_calendar", "create_task", "complete_task", "fill_rebalance_placeholder",
+    "CalendarReport", "CalendarTask",
+    "detect_market", "calc_cost", "save_cost_log", "CostBreakdown",
+    "log_decision", "run_behavior_check", "BehaviorReport", "BiasFlag",
+    # Phase 8: knowledge notes
+    "read_notes", "append_concept", "search_notes",
 ]

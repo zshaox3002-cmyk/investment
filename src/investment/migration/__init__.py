@@ -7,6 +7,7 @@ from investment.migration import (
     _06_load_alerts as m06,
     _07_load_executions as m07,
     _08_load_breaches as m08,
+    _10_agent_v3 as m10,
 )
 
-__all__ = ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08"]
+__all__ = ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m10"]

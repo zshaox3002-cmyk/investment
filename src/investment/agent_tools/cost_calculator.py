@@ -145,13 +145,14 @@ def calc_cost(
 def _build_human_message(b: CostBreakdown) -> str:
     market_names = {"A_SH": "沪市A股", "A_SZ": "深市A股", "A_BJ": "北交所", "HK": "港股"}
     side_label = "买入" if b.side == "BUY" else "卖出"
+    commission_rate_bps = (b.commission / b.gross_amount * 10000) if b.gross_amount > 0 else 0.0
     lines = [
         f"## 交易成本估算\n",
         f"**{side_label}** {b.shares:.0f} 股 @ ¥{b.price:.3f}（{market_names.get(b.market, b.market)}）\n",
         "### 费用明细",
         "| 费用项 | 金额 | 说明 |",
         "|--------|------|------|",
-        f"| 券商佣金 | ¥{b.commission:.2f} | 万{b.commission/b.gross_amount*10000:.1f}（最低5元） |",
+        f"| 券商佣金 | ¥{b.commission:.2f} | 万{commission_rate_bps:.1f}（最低5元） |",
     ]
     if b.stamp_duty > 0:
         lines.append(f"| 印花税 | ¥{b.stamp_duty:.2f} | {side_label}时收取 0.1% |")

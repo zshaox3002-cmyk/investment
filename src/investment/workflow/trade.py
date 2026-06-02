@@ -253,6 +253,57 @@ def apply_trade(trade_id: int, db_path=None) -> dict:
                 (iid,),
             )
 
+        # ── 自动更新现金余额 ──
+        # 卖出 → 回笼资金流入活期存款；买入 → 从活期存款扣款
+        trade_amount = trade["amount"]  # shares × price（不含手续费）
+
+        # 港股/美股需换算为人民币
+        inst = conn.execute(
+            "SELECT market FROM instruments WHERE id=?", (iid,)
+        ).fetchone()
+        market = inst["market"] if inst else "A"
+
+        # 汇率（近似，后续可改为从 quotes/外部源获取）
+        _FX_RATES = {"A": 1.0, "HK": 0.92, "US": 7.2, "OTC": 1.0}
+        fx_rate = _FX_RATES.get(market, 1.0)
+        amount_cny = trade_amount * fx_rate
+
+        # 查找活期存款 CASH instrument
+        cash_inst = conn.execute(
+            "SELECT id FROM instruments WHERE asset_class='CASH' AND active=1 LIMIT 1"
+        ).fetchone()
+
+        if cash_inst:
+            cash_iid = cash_inst["id"]
+            latest_cash = conn.execute(
+                """SELECT balance FROM cash_balances
+                   WHERE instrument_id=?
+                   ORDER BY effective_date DESC LIMIT 1""",
+                (cash_iid,),
+            ).fetchone()
+
+            current_balance = latest_cash["balance"] if latest_cash else 0.0
+
+            if trade["side"] == "SELL":
+                new_balance = current_balance + amount_cny
+                extra = f" (×{fx_rate} 汇率)" if fx_rate != 1.0 else ""
+                notes = f"卖出回笼资金 +{amount_cny:,.2f}{extra}（trade #{trade_id}）"
+            else:  # BUY
+                if amount_cny > current_balance:
+                    raise ValueError(
+                        f"现金不足：买入需 {amount_cny:,.2f}，活期余额 {current_balance:,.2f}"
+                    )
+                new_balance = current_balance - amount_cny
+                extra = f" (×{fx_rate} 汇率)" if fx_rate != 1.0 else ""
+                notes = f"买入支出 -{amount_cny:,.2f}{extra}（trade #{trade_id}）"
+
+            conn.execute(
+                """INSERT INTO cash_balances
+                   (instrument_id, effective_date, balance, annual_rate, status, notes)
+                   VALUES (?, ?, ?, 0.0, 'auto', ?)""",
+                (cash_iid, today, new_balance, notes),
+            )
+
     return {"trade_id": trade_id, "new_shares": new_shares, "new_cost": new_cost}
 
 
